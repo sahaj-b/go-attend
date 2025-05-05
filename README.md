@@ -21,5 +21,6 @@
   - [ ] make attendance view UI: subjectwise, weekdaywise, etc
   - [ ] handle arguments: start/end date, etc
   - [ ] add tests for attendance view UI?
+  - [ ] CI/CD: github actions, releases
   - [ ] publish to AUR?
   - [ ] README: add build and usage instructions
