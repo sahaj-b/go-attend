@@ -1,0 +1,25 @@
+# Attendance Tracker TUI from Scratch in Golang (WIP)
+## Todo:
+  - [x] TUI rendering (MVP)
+  - [x] State creation and management from scratch (MVP)
+  - [x] `store.go`: handle attendance storage in csv
+  - [x] move state logic in `state.go`
+  - [x] add tests for `store.go`
+  - [x] add date changing functionality in State
+  - [x] add caching for State items
+  - [x] cache records in `store.go`
+  - [x] refactor `store.go`: make CSVStore implementing DataStore interface
+  - [ ] add State tests?
+  - [ ] implement MockDataStore for testing
+  - [ ] add mock(and integration?) tests in `store_test.go`
+  - [ ] `config_parser.go`: parse timetable, startDate, semester?, etc
+  - [ ] add tests for `config_parser.go`
+  - [ ] refactor: new attendance type -1/NA
+  - [ ] complete validations in `config.go`
+  - [ ] fix and validate records to match config/schema/timetable changes
+  - [ ] add tests for `config.go`
+  - [ ] make attendance view UI: subjectwise, weekdaywise, etc
+  - [ ] handle arguments: start/end date, etc
+  - [ ] add tests for attendance view UI?
+  - [ ] publish to AUR?
+  - [ ] README: add build and usage instructions
