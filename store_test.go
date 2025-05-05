@@ -10,7 +10,7 @@ func TestStatusNum(t *testing.T) {
 		item   ItemStatus
 		status string
 	}{
-		{attended, "1"},
+		{present, "1"},
 		{absent, "0"},
 		{cancelled, "2"},
 	}
@@ -80,11 +80,11 @@ func TestItemsToRecord(t *testing.T) {
 			name: "all subjects",
 			date: "10-01-2023",
 			items: []Item{
-				{name: "English", selected: false, status: attended},
+				{name: "English", selected: false, status: present},
 				{name: "Math", selected: false, status: absent},
-				{name: "Science", selected: false, status: attended},
+				{name: "Science", selected: false, status: present},
 				{name: "History", selected: false, status: absent},
-				{name: "Geography", selected: false, status: attended},
+				{name: "Geography", selected: false, status: present},
 			},
 			record: Record{"10-01-2023", "1", "0", "1", "0", "1"},
 			isErr:  false,
@@ -93,9 +93,9 @@ func TestItemsToRecord(t *testing.T) {
 			name: "missing subjects",
 			date: "10-02-2023",
 			items: []Item{
-				{name: "Math", selected: false, status: attended},
+				{name: "Math", selected: false, status: present},
 				{name: "History", selected: false, status: absent},
-				{name: "English", selected: false, status: attended},
+				{name: "English", selected: false, status: present},
 			},
 			record: nil,
 			isErr:  true,
@@ -105,9 +105,9 @@ func TestItemsToRecord(t *testing.T) {
 			date: "01-03-2025",
 			items: []Item{
 				{name: "Math", selected: false, status: absent},
-				{name: "Geography", selected: false, status: attended},
-				{name: "Science", selected: false, status: attended},
-				{name: "English", selected: false, status: attended},
+				{name: "Geography", selected: false, status: present},
+				{name: "Science", selected: false, status: present},
+				{name: "English", selected: false, status: present},
 				{name: "History", selected: false, status: absent},
 			},
 			record: Record{"01-03-2025", "1", "0", "1", "0", "1"},
@@ -119,9 +119,9 @@ func TestItemsToRecord(t *testing.T) {
 			items: []Item{
 				{name: "English", selected: false, status: ItemStatus{text: "hello"}},
 				{name: "Math", selected: false, status: absent},
-				{name: "Science", selected: false, status: attended},
+				{name: "Science", selected: false, status: present},
 				{name: "History", selected: false, status: absent},
-				{name: "Geography", selected: false, status: attended},
+				{name: "Geography", selected: false, status: present},
 			},
 			record: nil,
 			isErr:  true,
@@ -130,7 +130,7 @@ func TestItemsToRecord(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			record, err := itemsToRecord(headers, test.date, test.items)
+			record, err := itemsToRecordStr(headers, test.date, test.items)
 			if test.isErr && err == nil {
 				t.Errorf("Expected error for %s, got nil", test.name)
 			} else if !test.isErr && err != nil {
@@ -155,7 +155,7 @@ func TestRecordToItems(t *testing.T) {
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  Record{"10-01-2023", "1", "0", "2"},
 			items: []Item{
-				{name: "Math", selected: false, status: attended},
+				{name: "Math", selected: false, status: present},
 				{name: "English", selected: false, status: absent},
 				{name: "History", selected: false, status: cancelled},
 			},
@@ -166,9 +166,9 @@ func TestRecordToItems(t *testing.T) {
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  Record{"10-02-2023", "1", "1", "1"},
 			items: []Item{
-				{name: "Math", selected: false, status: attended},
-				{name: "English", selected: false, status: attended},
-				{name: "History", selected: false, status: attended},
+				{name: "Math", selected: false, status: present},
+				{name: "English", selected: false, status: present},
+				{name: "History", selected: false, status: present},
 			},
 			isErr: false,
 		},
@@ -210,7 +210,7 @@ func TestRecordToItems(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			items, err := recordToItems(test.headers, test.record)
+			items, err := recordStrToItems(test.headers, test.record)
 			if test.isErr && err == nil {
 				t.Errorf("Expected error for record %v, got nil", test.record)
 			} else if !test.isErr && err != nil {
@@ -223,5 +223,5 @@ func TestRecordToItems(t *testing.T) {
 }
 
 // TODO: TestValidate
-func TestValidate(t *testing.T) {
-}
+// func TestValidate(t *testing.T) {
+// }

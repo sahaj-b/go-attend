@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-var CURR_TIME = time.Now()
+var CURR_DAY = time.Now().Truncate(time.Hour * 24)
 
 func main() {
 	restorer, err := initScreen()
@@ -14,46 +14,45 @@ func main() {
 		return
 	}
 	defer restorer()
-	records, err := getAllRecords()
+	csvStore, err := NewCSVStore()
+	if err != nil {
+		printRed("Error creating CSV store:" + err.Error())
+		return
+	}
+	records, err := csvStore.GetAllRecords()
 	if err != nil {
 		printRed("Error getting records:" + err.Error())
 		return
 	}
-	if err := records.validate(); err != nil {
+	if err := validateAndFixRecords(&records); err != nil {
 		printRed("Error validating records:" + err.Error())
 		return
 	}
-	state := State{
-		items: []Item{
-			{name: "English", selected: false, status: attended},
-			{name: "Math", selected: false, status: absent},
-			{name: "Science", selected: false, status: attended},
-			{name: "History", selected: false, status: absent},
-			{name: "Geography", selected: false, status: attended},
-		},
-		cursor:            0,
-		lastRenderedLines: -1, // to prevent clearing cli command
+	state, err := getInitialState(csvStore)
+	if err != nil {
+		printRed("Error getting initial state:" + err.Error())
+		return
 	}
 	confirm, quit := false, false
 
 	for !quit {
-		render(&state)
+		render(state)
 		inp, err := getInput()
 		if err != nil {
 			fmt.Println("Error reading input:", err)
 			break
 		}
-		confirm, quit = handleInput(&state, inp)
+		confirm, quit = handleInput(state, inp, csvStore)
 	}
 	fmt.Println()
 	if confirm {
-		if err := records.handleSave(CURR_TIME.Format(DATE_FORMAT_STORE), state.items); err != nil {
+		if err := csvStore.SaveState(state); err != nil {
 			printRed("Error saving items:" + err.Error())
 		} else {
 			printGreen("Saved successfully")
 		}
 	} else {
-		printRed("Cancelled by User")
+		printRed("Cancelled")
 	}
 	fmt.Println()
 }

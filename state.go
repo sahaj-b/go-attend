@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+const (
+	// ansi keycodes
+	upArrowKey    = "\x1b[A"
+	downArrowKey  = "\x1b[B"
+	leftArrowKey  = "\x1b[D"
+	rightArrowKey = "\x1b[C"
+	ctrlC         = "\x03"
+	kpEnterKey    = "\x1bOM"
+)
+
 type ItemStatus struct {
 	bullet string
 	text   string
@@ -12,7 +22,7 @@ type ItemStatus struct {
 }
 
 var (
-	attended  ItemStatus = ItemStatus{style: green, bullet: "●", text: "Attended"}
+	present   ItemStatus = ItemStatus{style: green, bullet: "●", text: "Attended"}
 	absent    ItemStatus = ItemStatus{style: white, bullet: "○", text: "Absent"}
 	cancelled ItemStatus = ItemStatus{style: gray + strike, bullet: "×", text: "Cancelled"}
 )
@@ -23,12 +33,30 @@ type Item struct {
 	status   ItemStatus
 }
 
+type ItemsMap map[time.Time][]Item
+
 type State struct {
 	date              time.Time
+	atMaxDate         bool
 	items             []Item
-	cachedDates       map[time.Time][]Item
+	cachedDates       ItemsMap
 	cursor            int
 	lastRenderedLines int
+}
+
+func getInitialState(store DataStore) (*State, error) {
+	state := &State{
+		date:              CURR_DAY,
+		atMaxDate:         true,
+		cachedDates:       make(ItemsMap),
+		cursor:            0,
+		lastRenderedLines: -1, // to prevent clearing cli command
+	}
+	err := state.loadItems(store)
+	if err != nil {
+		return nil, errors.New("Error loading items: " + err.Error())
+	}
+	return state, nil
 }
 
 func (state *State) toggleCancel() {
@@ -41,12 +69,12 @@ func (state *State) toggleCancel() {
 
 func (state *State) toggleItem() {
 	switch state.items[state.cursor].status {
-	case attended:
+	case present:
 		state.items[state.cursor].status = absent
 	case absent:
-		state.items[state.cursor].status = attended
+		state.items[state.cursor].status = present
 	case cancelled:
-		state.items[state.cursor].status = attended
+		state.items[state.cursor].status = present
 	}
 }
 
@@ -63,13 +91,23 @@ func (state *State) moveCursor(direction string) {
 	}
 }
 
-func handleInput(state *State, input string) (confirm bool, quit bool) {
+func handleInput(state *State, input string, store DataStore) (confirm bool, quit bool) {
 	confirm, quit = false, false
 	switch input {
 	case upArrowKey, "k":
 		state.moveCursor("up")
 	case downArrowKey, "j":
 		state.moveCursor("down")
+	case leftArrowKey, "h":
+		if err := state.stepDay("prev", store); err != nil {
+			printRed("Error going previous day: " + err.Error())
+			return false, true
+		}
+	case rightArrowKey, "l":
+		if err := state.stepDay("next", store); err != nil {
+			printRed("Error going next day: " + err.Error())
+			return false, true
+		}
 	case " ":
 		state.toggleItem()
 	case "c":
@@ -82,22 +120,54 @@ func handleInput(state *State, input string) (confirm bool, quit bool) {
 	return confirm, quit
 }
 
-func (state *State) stepDay(direction string) (atMaxDate bool, err error) {
-	// TODO: Complete this shit
+func (state *State) loadItems(store DataStore) (err error) {
+	if newItems, found := state.cachedDates[state.date]; found {
+		state.items = newItems
+	} else {
+		newItems, found, err := store.GetItemsByDate(state.date.Format(DATE_FORMAT_STORE))
+		if err != nil {
+			return errors.New("Error getting items by date: " + err.Error())
+		}
+		if found {
+			state.items = newItems
+		} else {
+			state.items, err = getNewItemsFromCfg(state.date.Format(WEEKDAY_FORMAT))
+			if err != nil {
+				return errors.New("Error getting initial items: " + err.Error())
+			}
+		}
+	}
+	newItemsLen := len(state.items)
+	if newItemsLen > 0 && state.cursor >= newItemsLen {
+		state.cursor = len(state.items) - 1
+	}
+	return nil
+}
 
-	// ogDate := state.date
-
-	// cool date equality check
-	if state.date.Truncate(24 * time.Hour).Equal(time.Now().Truncate(24 * time.Hour)) {
-		return true, nil
+func (state *State) stepDay(direction string, store DataStore) error {
+	if _, ok := state.cachedDates[state.date]; !ok {
+		state.cachedDates[state.date] = state.items
 	}
 	switch direction {
 	case "next":
-		state.date = state.date.AddDate(0, 0, 1)
+		if !state.atMaxDate {
+			state.date = state.date.AddDate(0, 0, 1)
+		}
 	case "prev":
 		state.date = state.date.AddDate(0, 0, -1)
 	default:
-		return false, errors.New("Invalid direction")
+		return errors.New("Invalid direction")
 	}
-	return false, nil
+
+	if state.date.Equal(CURR_DAY) {
+		state.atMaxDate = true
+	} else {
+		state.atMaxDate = false
+	}
+
+	err := state.loadItems(store)
+	if err != nil {
+		return errors.New("Error loading new items: " + err.Error())
+	}
+	return nil
 }

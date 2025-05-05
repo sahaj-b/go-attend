@@ -12,7 +12,7 @@ import (
 const (
 	// ansi control codes
 	DATE_FORMAT_UI   = "02 Jan 2006"
-	WEEKDAY_FORMAT   = "Monday"
+	WEEKDAY_FORMAT   = "Mon"
 	hideCursor       = "\x1b[?25l"
 	showCursor       = "\x1b[?25h"
 	saveCursorPos    = "\x1b[s"
@@ -30,21 +30,23 @@ const (
 	cyan       = "\x1b[36m"
 	gray       = "\x1b[38;5;247m"
 	yellow     = "\x1b[33m"
+	bggray     = "\x1b[48;5;236m"
+	disabled   = "\x1b[38;5;239m"
+	strike     = "\x1b[9m"
 
-	bggray = "\x1b[48;5;236m"
-	strike = "\x1b[9m"
-
-	// keycodes
-	upArrowKey   = "\x1b[A"
-	downArrowKey = "\x1b[B"
-	ctrlC        = "\x03"
-	kpEnterKey   = "\x1bOM"
-
-	highlight  = yellow
-	cursorChar = highlight + "❯" + resetStyle
-	leftArrow  = gray + "←" + resetStyle
-	rightArrow = gray + "→" + resetStyle
+	highlight          = yellow
+	cursorChar         = highlight + "❯" + resetStyle
+	leftArrow          = gray + "←" + resetStyle
+	rightArrow         = gray + "→" + resetStyle
+	disabledRightArrow = disabled + "→" + resetStyle
 )
+
+var hints = []Hint{
+	{"Space", "toggle attendance"},
+	{"c", "toggle cancelled"},
+	{"Enter", "confirm"},
+	{"q", "quit"},
+}
 
 func initScreen() (restorer func(), err error) {
 	fmt.Print(hideCursor + saveCursorPos)
@@ -83,9 +85,13 @@ func hintComponent(hints []Hint) string {
 	return result
 }
 
-func dateComponent(date time.Time) string {
+func dateComponent(date time.Time, atMaxDate bool) string {
 	today := date.Format(DATE_FORMAT_UI)
 	weekday := date.Format(WEEKDAY_FORMAT)
+	rightArrow := rightArrow
+	if atMaxDate {
+		rightArrow = disabledRightArrow
+	}
 	return " " + leftArrow + " " +
 		bggray +
 		highlight + " " + weekday + " " + resetStyle +
@@ -96,30 +102,21 @@ func dateComponent(date time.Time) string {
 func render(state *State) {
 	output := "\r\n"
 	fmt.Printf(moveUp+clearDown, state.lastRenderedLines)
-	output += dateComponent(state.date) + "\r\n"
-	// hints1 := []Hint{
-	// 	{"↑/↓/j/k", "move cursor"},
-	// 	{"←/→/h/l", "cycle dates"},
-	// }
-	//
-	hints2 := []Hint{
-		{"Space", "toggle attendance"},
-		{"c", "toggle cancelled"},
-		{"Enter", "confirm"},
-		{"q", "quit"},
-	}
-
-	// output += hintComponent(hints1)
+	output += dateComponent(state.date, state.atMaxDate) + "\r\n"
 	output += "\r\n"
-	for i, item := range state.items {
-		if i == state.cursor {
-			output += " " + cursorChar + bold + " " + item.status.style + item.status.bullet + " " + item.name + resetStyle + "\r\n"
-		} else {
-			output += "   " + item.status.style + item.status.bullet + " " + item.name + resetStyle + "\r\n"
+	if len(state.items) == 0 {
+		output += "   " + yellow + bold + "No classes for this date" + resetStyle + "\r\n"
+	} else {
+		for i, item := range state.items {
+			if i == state.cursor {
+				output += " " + cursorChar + bold + " " + item.status.style + item.status.bullet + " " + item.name + resetStyle + "\r\n"
+			} else {
+				output += "   " + item.status.style + item.status.bullet + " " + item.name + resetStyle + "\r\n"
+			}
 		}
 	}
 	output += "\r\n"
-	output += hintComponent(hints2)
+	output += hintComponent(hints)
 	// renderedLines := len(state.items) + 3
 	state.lastRenderedLines = strings.Count(output, "\r\n")
 	fmt.Print(output)
