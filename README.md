@@ -9,6 +9,8 @@
   - [x] add caching for State items
   - [x] cache records in `store.go`
   - [x] refactor `store.go`: make CSVStore implementing DataStore interface
+  - [x] chore: split into different packages
+  - [x] refactor: fix cyclic imports
   - [ ] `config_parser.go`: parse timetable, startDate, semester?, etc
   - [ ] add tests for `config_parser.go`
   - [ ] refactor: new attendance type -1/NA

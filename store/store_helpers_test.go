@@ -1,23 +1,25 @@
-package main
+package store
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/sahaj-b/go-attend/state"
 )
 
 func TestStatusNum(t *testing.T) {
 	tests := []struct {
-		item   ItemStatus
-		status string
+		item   state.ItemStatus
+		Status string
 	}{
-		{present, "1"},
-		{absent, "0"},
-		{cancelled, "2"},
+		{state.Present, "1"},
+		{state.Absent, "0"},
+		{state.Cancelled, "2"},
 	}
 
 	for _, test := range tests {
-		if test.item.statusNum() != test.status {
-			t.Errorf("Expected %s, got %s", test.status, test.item.statusNum())
+		if statusNum(test.item) != test.Status {
+			t.Errorf("Expected %s, got %s", test.Status, statusNum(test.item))
 		}
 	}
 }
@@ -70,58 +72,58 @@ func TestValidateRecord(t *testing.T) {
 func TestItemsToRecord(t *testing.T) {
 	headers := []string{"Date", "English", "Math", "Science", "History", "Geography"}
 	tests := []struct {
-		name   string
+		Name   string
 		date   string
-		items  []Item
+		items  []state.Item
 		record Record
 		isErr  bool
 	}{
 		{
-			name: "all subjects",
+			Name: "all subjects",
 			date: "10-01-2023",
-			items: []Item{
-				{name: "English", selected: false, status: present},
-				{name: "Math", selected: false, status: absent},
-				{name: "Science", selected: false, status: present},
-				{name: "History", selected: false, status: absent},
-				{name: "Geography", selected: false, status: present},
+			items: []state.Item{
+				{Name: "English", Selected: false, Status: state.Present},
+				{Name: "Math", Selected: false, Status: state.Absent},
+				{Name: "Science", Selected: false, Status: state.Present},
+				{Name: "History", Selected: false, Status: state.Absent},
+				{Name: "Geography", Selected: false, Status: state.Present},
 			},
 			record: Record{"10-01-2023", "1", "0", "1", "0", "1"},
 			isErr:  false,
 		},
 		{
-			name: "missing subjects",
+			Name: "missing subjects",
 			date: "10-02-2023",
-			items: []Item{
-				{name: "Math", selected: false, status: present},
-				{name: "History", selected: false, status: absent},
-				{name: "English", selected: false, status: present},
+			items: []state.Item{
+				{Name: "Math", Selected: false, Status: state.Present},
+				{Name: "History", Selected: false, Status: state.Absent},
+				{Name: "English", Selected: false, Status: state.Present},
 			},
 			record: nil,
 			isErr:  true,
 		},
 		{
-			name: "unordered subjects (no error)",
+			Name: "unordered subjects (no error)",
 			date: "01-03-2025",
-			items: []Item{
-				{name: "Math", selected: false, status: absent},
-				{name: "Geography", selected: false, status: present},
-				{name: "Science", selected: false, status: present},
-				{name: "English", selected: false, status: present},
-				{name: "History", selected: false, status: absent},
+			items: []state.Item{
+				{Name: "Math", Selected: false, Status: state.Absent},
+				{Name: "Geography", Selected: false, Status: state.Present},
+				{Name: "Science", Selected: false, Status: state.Present},
+				{Name: "English", Selected: false, Status: state.Present},
+				{Name: "History", Selected: false, Status: state.Absent},
 			},
 			record: Record{"01-03-2025", "1", "0", "1", "0", "1"},
 			isErr:  false,
 		},
 		{
-			name: "invalid status",
+			Name: "invalid Status",
 			date: "01-04-2025",
-			items: []Item{
-				{name: "English", selected: false, status: ItemStatus{text: "hello"}},
-				{name: "Math", selected: false, status: absent},
-				{name: "Science", selected: false, status: present},
-				{name: "History", selected: false, status: absent},
-				{name: "Geography", selected: false, status: present},
+			items: []state.Item{
+				{Name: "English", Selected: false, Status: state.ItemStatus{Text: "hello"}},
+				{Name: "Math", Selected: false, Status: state.Absent},
+				{Name: "Science", Selected: false, Status: state.Present},
+				{Name: "History", Selected: false, Status: state.Absent},
+				{Name: "Geography", Selected: false, Status: state.Present},
 			},
 			record: nil,
 			isErr:  true,
@@ -129,12 +131,12 @@ func TestItemsToRecord(t *testing.T) {
 	}
 	for _, test := range tests {
 		test := test
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.Name, func(t *testing.T) {
 			record, err := itemsToRecordStr(headers, test.date, test.items)
 			if test.isErr && err == nil {
-				t.Errorf("Expected error for %s, got nil", test.name)
+				t.Errorf("Expected error for %s, got nil", test.Name)
 			} else if !test.isErr && err != nil {
-				t.Errorf("Unexpected error for %s: %v", test.name, err)
+				t.Errorf("Unexpected error for %s: %v", test.Name, err)
 			} else if !test.isErr && record != nil && !reflect.DeepEqual(record, test.record) {
 				t.Errorf("Expected %v, got %v", test.record, record)
 			}
@@ -144,64 +146,64 @@ func TestItemsToRecord(t *testing.T) {
 
 func TestRecordToItems(t *testing.T) {
 	tests := []struct {
-		name    string
+		Name    string
 		headers []string
 		record  Record
-		items   []Item
+		items   []state.Item
 		isErr   bool
 	}{
 		{
-			name:    "valid record",
+			Name:    "valid record",
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  Record{"10-01-2023", "1", "0", "2"},
-			items: []Item{
-				{name: "Math", selected: false, status: present},
-				{name: "English", selected: false, status: absent},
-				{name: "History", selected: false, status: cancelled},
+			items: []state.Item{
+				{Name: "Math", Selected: false, Status: state.Present},
+				{Name: "English", Selected: false, Status: state.Absent},
+				{Name: "History", Selected: false, Status: state.Cancelled},
 			},
 			isErr: false,
 		},
 		{
-			name:    "all attended",
+			Name:    "all attended",
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  Record{"10-02-2023", "1", "1", "1"},
-			items: []Item{
-				{name: "Math", selected: false, status: present},
-				{name: "English", selected: false, status: present},
-				{name: "History", selected: false, status: present},
+			items: []state.Item{
+				{Name: "Math", Selected: false, Status: state.Present},
+				{Name: "English", Selected: false, Status: state.Present},
+				{Name: "History", Selected: false, Status: state.Present},
 			},
 			isErr: false,
 		},
 		{
-			name:    "missing subject",
+			Name:    "missing subject",
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  Record{"10-04-2023", "1", "0"},
 			items:   nil,
 			isErr:   true,
 		},
 		{
-			name:    "extra field",
+			Name:    "extra field",
 			headers: []string{"Date", "Math", "English"},
 			record:  Record{"10-05-2023", "1", "0", "1", "0"},
 			items:   nil,
 			isErr:   true,
 		},
 		{
-			name:    "invalid status value",
+			Name:    "invalid Status value",
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  Record{"10-06-2023", "10", "0", "1"},
 			items:   nil,
 			isErr:   true,
 		},
 		{
-			name:    "empty record",
+			Name:    "empty record",
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  Record{},
 			items:   nil,
 			isErr:   true,
 		},
 		{
-			name:    "empty headers",
+			Name:    "empty headers",
 			headers: []string{},
 			record:  Record{"10-07-2023", "1", "0", "1"},
 			items:   nil,
@@ -209,7 +211,7 @@ func TestRecordToItems(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.Name, func(t *testing.T) {
 			items, err := recordStrToItems(test.headers, test.record)
 			if test.isErr && err == nil {
 				t.Errorf("Expected error for record %v, got nil", test.record)

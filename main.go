@@ -2,57 +2,58 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"github.com/sahaj-b/go-attend/config"
+	"github.com/sahaj-b/go-attend/state"
+	"github.com/sahaj-b/go-attend/store"
+	"github.com/sahaj-b/go-attend/ui"
 )
 
-var CURR_DAY = time.Now().Truncate(time.Hour * 24)
-
 func main() {
-	restorer, err := initScreen()
+	restorer, err := ui.InitScreen()
 	if err != nil {
-		printRed("Error initializing terminal:" + err.Error())
+		ui.Error("Error initializing terminal:" + err.Error())
 		return
 	}
 	defer restorer()
-	csvStore, err := NewCSVStore()
+	csvStore, err := store.NewCSVStore()
 	if err != nil {
-		printRed("Error creating CSV store:" + err.Error())
+		ui.Error("Error creating CSV store:" + err.Error())
 		return
 	}
 	records, err := csvStore.GetAllRecords()
 	if err != nil {
-		printRed("Error getting records:" + err.Error())
+		ui.Error("Error getting records:" + err.Error())
 		return
 	}
-	if err := validateAndFixRecords(&records); err != nil {
-		printRed("Error validating records:" + err.Error())
+	if err := config.ValidateAndFixRecords(&records); err != nil {
+		ui.Error("Error validating records:" + err.Error())
 		return
 	}
-	state, err := getInitialState(csvStore)
+	currState, err := state.GetInitialState(csvStore)
 	if err != nil {
-		printRed("Error getting initial state:" + err.Error())
+		ui.Error("Error getting initial state:" + err.Error())
 		return
 	}
 	confirm, quit := false, false
 
 	for !quit {
-		render(state)
-		inp, err := getInput()
+		ui.Render(currState)
+		inp, err := ui.GetInput()
 		if err != nil {
 			fmt.Println("Error reading input:", err)
 			break
 		}
-		confirm, quit = handleInput(state, inp, csvStore)
+		confirm, quit = state.HandleInput(currState, inp, csvStore)
 	}
 	fmt.Println()
 	if confirm {
-		if err := csvStore.SaveState(state); err != nil {
-			printRed("Error saving items:" + err.Error())
+		if err := csvStore.SaveState(currState); err != nil {
+			ui.Error("Error saving items:" + err.Error())
 		} else {
-			printGreen("Saved successfully")
+			ui.Success("Saved successfully")
 		}
 	} else {
-		printRed("Cancelled")
+		ui.Error("Cancelled")
 	}
 	fmt.Println()
 }

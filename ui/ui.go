@@ -1,8 +1,9 @@
-package main
+package ui
 
 import (
 	"errors"
 	"fmt"
+	"github.com/sahaj-b/go-attend/state"
 	"os"
 	"os/exec"
 	"strings"
@@ -20,26 +21,17 @@ const (
 	clearDown        = "\x1b[J"
 	moveUp           = "\x1b[%dA"
 
-	// styles
-	resetStyle = "\x1b[0m"
-	bold       = "\x1b[1m"
-	magenta    = "\x1b[38;2;255;0;255m"
-	white      = "\x1b[38;5;255m"
-	red        = "\x1b[31m"
-	green      = "\x1b[32m"
-	cyan       = "\x1b[36m"
-	gray       = "\x1b[38;5;247m"
-	yellow     = "\x1b[33m"
-	bggray     = "\x1b[48;5;236m"
-	disabled   = "\x1b[38;5;239m"
-	strike     = "\x1b[9m"
-
-	highlight          = yellow
-	cursorChar         = highlight + "❯" + resetStyle
-	leftArrow          = gray + "←" + resetStyle
-	rightArrow         = gray + "→" + resetStyle
-	disabledRightArrow = disabled + "→" + resetStyle
+	highlight          = Yellow
+	cursorChar         = highlight + "❯" + ResetStyle
+	leftArrow          = Gray + "←" + ResetStyle
+	rightArrow         = Gray + "→" + ResetStyle
+	disabledRightArrow = Disabled + "→" + ResetStyle
 )
+
+type Hint struct {
+	key string
+	val string
+}
 
 var hints = []Hint{
 	{"Space", "toggle attendance"},
@@ -48,7 +40,7 @@ var hints = []Hint{
 	{"q", "quit"},
 }
 
-func initScreen() (restorer func(), err error) {
+func InitScreen() (restorer func(), err error) {
 	fmt.Print(hideCursor + saveCursorPos)
 	cmd := exec.Command("stty", "-F", "/dev/tty", "-g")
 	initStateBytes, err := cmd.Output()
@@ -71,15 +63,10 @@ func initScreen() (restorer func(), err error) {
 	}, nil
 }
 
-type Hint struct {
-	key string
-	val string
-}
-
 func hintComponent(hints []Hint) string {
 	result := " "
 	for _, hint := range hints {
-		result += bggray + highlight + bold + " " + hint.key + resetStyle + bggray + ": " + hint.val + " " + resetStyle + " "
+		result += Bggray + highlight + Bold + " " + hint.key + ResetStyle + Bggray + ": " + hint.val + " " + ResetStyle + " "
 	}
 	result += "\r\n"
 	return result
@@ -93,36 +80,49 @@ func dateComponent(date time.Time, atMaxDate bool) string {
 		rightArrow = disabledRightArrow
 	}
 	return " " + leftArrow + " " +
-		bggray +
-		highlight + " " + weekday + " " + resetStyle +
-		" " + highlight + today + " " + resetStyle +
+		Bggray +
+		highlight + " " + weekday + " " + ResetStyle +
+		" " + highlight + today + " " + ResetStyle +
 		" " + rightArrow
 }
 
-func render(state *State) {
+func Render(s *state.State) {
 	output := "\r\n"
-	fmt.Printf(moveUp+clearDown, state.lastRenderedLines)
-	output += dateComponent(state.date, state.atMaxDate) + "\r\n"
+	fmt.Printf(moveUp+clearDown, s.LastRenderedLines)
+	output += dateComponent(s.Date, s.AtMaxDate) + "\r\n"
 	output += "\r\n"
-	if len(state.items) == 0 {
-		output += "   " + yellow + bold + "No classes for this date" + resetStyle + "\r\n"
+	if len(s.Items) == 0 {
+		output += "   " + Yellow + Bold + "No classes for this date" + ResetStyle + "\r\n"
 	} else {
-		for i, item := range state.items {
-			if i == state.cursor {
-				output += " " + cursorChar + bold + " " + item.status.style + item.status.bullet + " " + item.name + resetStyle + "\r\n"
+		for i, item := range s.Items {
+			itemStyle := ""
+			itemBullet := ""
+			switch item.Status.Kind {
+			case state.PresentStatus:
+				itemStyle = Green
+				itemBullet = "●"
+			case state.AbsentStatus:
+				itemStyle = ""
+				itemBullet = "○"
+			case state.CancelledStatus:
+				itemStyle = Gray + Strike
+				itemBullet = "✗"
+			}
+			if i == s.Cursor {
+				output += " " + cursorChar + Bold + " " + itemStyle + itemBullet + " " + item.Name + ResetStyle + "\r\n"
 			} else {
-				output += "   " + item.status.style + item.status.bullet + " " + item.name + resetStyle + "\r\n"
+				output += "   " + itemStyle + itemBullet + " " + item.Name + ResetStyle + "\r\n"
 			}
 		}
 	}
 	output += "\r\n"
 	output += hintComponent(hints)
 	// renderedLines := len(state.items) + 3
-	state.lastRenderedLines = strings.Count(output, "\r\n")
+	s.LastRenderedLines = strings.Count(output, "\r\n")
 	fmt.Print(output)
 }
 
-func getInput() (string, error) {
+func GetInput() (string, error) {
 	inputBuf := make([]byte, 3)
 	n, err := os.Stdin.Read(inputBuf)
 	if err != nil {

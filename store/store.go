@@ -1,8 +1,10 @@
-package main
+package store
 
 import (
 	"encoding/csv"
 	"errors"
+	"github.com/sahaj-b/go-attend/config"
+	"github.com/sahaj-b/go-attend/state"
 	"io"
 	"os"
 	"os/user"
@@ -12,26 +14,16 @@ import (
 	"time"
 )
 
-type DataStore interface {
-	GetAllRecords() (Records, error)
-	GetItemsByDate(date string) ([]Item, bool, error)
-	SaveState(state *State) error
-	GetHeader() (Record, error)
-}
-
 type CSVStore struct {
 	filePath      string
-	cachedRecords Records
+	cachedRecords config.Records
 	cacheValid    bool
 }
-
-type Record []string
-type Records [][]string
 
 var DATE_FORMAT_STORE = "02-01-2006"
 
 // 0: absent, 1: attended, 2: cancelled
-var itemStatusArr = [3]ItemStatus{absent, present, cancelled}
+var itemStatusArr = [3]state.ItemStatus{state.Absent, state.Present, state.Cancelled}
 
 func NewCSVStore() (*CSVStore, error) {
 	filePath, err := getDataFilePath()
@@ -40,14 +32,14 @@ func NewCSVStore() (*CSVStore, error) {
 	}
 	return &CSVStore{
 		filePath:      filePath,
-		cachedRecords: make(Records, 0),
+		cachedRecords: make(config.Records, 0),
 		cacheValid:    false,
 	}, nil
 }
 
-func (item ItemStatus) statusNum() string {
+func statusNum(itemStatus state.ItemStatus) string {
 	for i, status := range itemStatusArr {
-		if status == item {
+		if status == itemStatus {
 			return strconv.Itoa(i)
 		}
 	}
@@ -64,7 +56,7 @@ func validateHeader(header []string) error {
 	return nil
 }
 
-func validateRecord(header []string, record Record) error {
+func validateRecord(header []string, record config.Record) error {
 	// assumes header is valid
 	if len(record) < 2 {
 		return errors.New("Record length must be at least 2")
@@ -83,28 +75,28 @@ func validateRecord(header []string, record Record) error {
 	return nil
 }
 
-func itemsToRecordStr(header Record, date string, items []Item) (Record, error) {
+func itemsToRecordStr(header config.Record, dateStr string, items []state.Item) (config.Record, error) {
 	validateHeader(header)
 	if len(items) != len(header)-1 {
 		return nil, errors.New("Items length must match header length - 1")
 	}
-	record := make(Record, len(items)+1)
-	record[0] = date
+	record := make(config.Record, len(items)+1)
+	record[0] = dateStr
 	for _, item := range items {
-		statusNum := item.status.statusNum()
+		statusNum := statusNum(item.Status)
 		if statusNum == "-1" {
-			return nil, errors.New("Invalid item status: " + item.status.text)
+			return nil, errors.New("Invalid item status: " + item.Status.Text)
 		}
 		match := false
 		for j, subject := range header[1:] {
-			if item.name == subject {
+			if item.Name == subject {
 				record[j+1] = statusNum
 				match = true
 				break
 			}
 		}
 		if !match {
-			return nil, errors.New("No '" + item.name + "' in header")
+			return nil, errors.New("No '" + item.Name + "' in header")
 		}
 	}
 	return record, nil
@@ -170,7 +162,7 @@ func (cs *CSVStore) getDataFile(mode string) (dataFile *os.File, err error) {
 	return dataFile, nil
 }
 
-func (cs *CSVStore) GetHeader() (Record, error) {
+func (cs *CSVStore) GetHeader() (config.Record, error) {
 	records, err := cs.GetAllRecords()
 	if err != nil {
 		return nil, errors.New("Failed to fetch records: " + err.Error())
@@ -178,7 +170,7 @@ func (cs *CSVStore) GetHeader() (Record, error) {
 	return records[0], nil
 }
 
-func (cs *CSVStore) GetAllRecords() (Records, error) {
+func (cs *CSVStore) GetAllRecords() (config.Records, error) {
 	if cs.cacheValid {
 		return cs.cachedRecords, nil
 	}
@@ -192,8 +184,8 @@ func (cs *CSVStore) GetAllRecords() (Records, error) {
 	if err != nil {
 		return nil, err
 	}
-	records := Records(csvrecords)
-	if err := validateAndFixRecords(&records); err != nil {
+	records := config.Records(csvrecords)
+	if err := config.ValidateAndFixRecords(&records); err != nil {
 		return nil, errors.New("Corrupted data file: " + err.Error())
 	}
 	cs.cachedRecords = records
@@ -201,32 +193,33 @@ func (cs *CSVStore) GetAllRecords() (Records, error) {
 	return records, nil
 }
 
-func recordStrToItems(header []string, record Record) ([]Item, error) {
+func recordStrToItems(header []string, record config.Record) ([]state.Item, error) {
 	if err := validateHeader(header); err != nil {
 		return nil, errors.New("Invalid header: " + err.Error())
 	}
 	if err := validateRecord(header, record); err != nil {
 		return nil, errors.New("Invalid record: " + err.Error())
 	}
-	items := make([]Item, len(header)-1)
+	items := make([]state.Item, len(header)-1)
 	for i, header := range header[1:] {
 		statusNum, _ := strconv.Atoi(record[i+1]) // validateRecord() ensures this is safe
-		items[i] = Item{
-			name:     header,
-			selected: false,
-			status:   itemStatusArr[statusNum],
+		items[i] = state.Item{
+			Name:     header,
+			Selected: false,
+			Status:   itemStatusArr[statusNum],
 		}
 	}
 	return items, nil
 }
 
-func (cs *CSVStore) GetItemsByDate(date string) ([]Item, bool, error) {
+func (cs *CSVStore) GetItemsByDate(date time.Time) ([]state.Item, bool, error) {
 	records, err := cs.GetAllRecords()
 	if err != nil {
 		return nil, false, errors.New("Failed to fetch records: " + err.Error())
 	}
+	dateStr := date.Format(DATE_FORMAT_STORE)
 	for _, record := range records {
-		if record[0] == date {
+		if record[0] == dateStr {
 			items, err := recordStrToItems((records)[0], record)
 			if err != nil {
 				return nil, false, errors.New("Couldn't convert record to Items: " + err.Error())
@@ -248,7 +241,7 @@ func ensureHeader(file *os.File) error {
 			file.Seek(0, 0)
 			writer := csv.NewWriter(file)
 			defer writer.Flush()
-			header, err := getHeaderFromCfg()
+			header, err := config.GetHeader()
 			if err != nil {
 				return err
 			}
@@ -262,7 +255,7 @@ func ensureHeader(file *os.File) error {
 	return nil
 }
 
-func (cs *CSVStore) writeAllRecords(records *Records) error {
+func (cs *CSVStore) writeAllRecords(records *config.Records) error {
 	file, err := cs.getDataFile("w")
 	if err != nil {
 		return err
@@ -276,18 +269,18 @@ func (cs *CSVStore) writeAllRecords(records *Records) error {
 	return nil
 }
 
-func (cs *CSVStore) saveRecords(imap *ItemsMap) error {
+func (cs *CSVStore) saveRecords(imap *state.ItemsMap) error {
 	allRecords, err := cs.GetAllRecords()
 	if err != nil {
 		return errors.New("Failed to fetch records: " + err.Error())
 	}
 	// TODO: handle header validation
-	header, err := getHeaderFromCfg()
+	header, err := config.GetHeader()
 	if err != nil {
 		return errors.New("Failed to get header from config: " + err.Error())
 	}
 
-	recordsMap := make(map[string]Record)
+	recordsMap := make(map[string]config.Record)
 	for i, record := range allRecords {
 		if i == 0 {
 			continue
@@ -307,7 +300,7 @@ func (cs *CSVStore) saveRecords(imap *ItemsMap) error {
 		recordsMap[formattedDate] = newRecord
 	}
 
-	finalRecords := make(Records, len(recordsMap)+1)
+	finalRecords := make(config.Records, len(recordsMap)+1)
 	finalRecords = append(finalRecords, header)
 	for _, record := range recordsMap {
 		finalRecords = append(finalRecords, record)
@@ -322,9 +315,9 @@ func (cs *CSVStore) saveRecords(imap *ItemsMap) error {
 	return nil
 }
 
-func (cs *CSVStore) SaveState(state *State) error {
-	state.cachedDates[state.date] = state.items
-	err := cs.saveRecords(&state.cachedDates)
+func (cs *CSVStore) SaveState(s *state.State) error {
+	s.CachedDates[s.Date] = s.Items
+	err := cs.saveRecords(&s.CachedDates)
 	if err != nil {
 		return errors.New("Failed to save: " + err.Error())
 	}
