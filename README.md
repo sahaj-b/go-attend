@@ -9,9 +9,6 @@
   - [x] add caching for State items
   - [x] cache records in `store.go`
   - [x] refactor `store.go`: make CSVStore implementing DataStore interface
-  - [ ] add State tests?
-  - [ ] implement MockDataStore for testing
-  - [ ] add mock(and integration?) tests in `store_test.go`
   - [ ] `config_parser.go`: parse timetable, startDate, semester?, etc
   - [ ] add tests for `config_parser.go`
   - [ ] refactor: new attendance type -1/NA
@@ -21,6 +18,7 @@
   - [ ] make attendance view UI: subjectwise, weekdaywise, etc
   - [ ] handle arguments: start/end date, etc
   - [ ] add tests for attendance view UI?
+  - [ ] support windows using `term` package
   - [ ] CI/CD: github actions, releases
   - [ ] publish to AUR?
   - [ ] README: add build and usage instructions
