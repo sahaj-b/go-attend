@@ -69,7 +69,7 @@ func GetInitialState(repo Repository) (*State, error) {
 	}
 	err := state.loadItems(repo)
 	if err != nil {
-		return nil, errors.New("Error loading items: " + err.Error())
+		return nil, errors.New("Error loading initial items: " + err.Error())
 	}
 	return state, nil
 }

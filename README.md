@@ -11,6 +11,7 @@
   - [x] refactor `store.go`: make CSVStore implementing DataStore interface
   - [x] chore: split into different packages
   - [x] refactor: fix cyclic imports
+  - [ ] use strings.Builder instead of concatenation?
   - [ ] `config_parser.go`: parse timetable, startDate, semester?, etc
   - [ ] add tests for `config_parser.go`
   - [ ] refactor: new attendance type -1/NA
@@ -20,7 +21,7 @@
   - [ ] make attendance view UI: subjectwise, weekdaywise, etc
   - [ ] handle arguments: start/end date, etc
   - [ ] add tests for attendance view UI?
-  - [ ] support windows using `term` package
+  - [ ] support windows using `term` package?
   - [ ] CI/CD: github actions, releases
   - [ ] publish to AUR?
   - [ ] README: add build and usage instructions

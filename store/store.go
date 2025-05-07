@@ -22,9 +22,6 @@ type CSVStore struct {
 
 var DATE_FORMAT_STORE = "02-01-2006"
 
-// 0: absent, 1: attended, 2: cancelled
-var itemStatusArr = [3]state.ItemStatus{state.Absent, state.Present, state.Cancelled}
-
 func NewCSVStore() (*CSVStore, error) {
 	filePath, err := getDataFilePath()
 	if err != nil {
@@ -37,13 +34,21 @@ func NewCSVStore() (*CSVStore, error) {
 	}, nil
 }
 
-func statusNum(itemStatus state.ItemStatus) string {
-	for i, status := range itemStatusArr {
-		if status == itemStatus {
-			return strconv.Itoa(i)
-		}
+func numStrToStatus(s string) (state.ItemStatus, error) {
+	num, err := strconv.Atoi(s)
+	if err != nil {
+		return state.ItemStatus{}, errors.New("invalid status number string: " + s)
 	}
-	return "-1"
+	switch state.StatusKind(num) {
+	case state.PresentStatus:
+		return state.Present, nil
+	case state.AbsentStatus:
+		return state.Absent, nil
+	case state.CancelledStatus:
+		return state.Cancelled, nil
+	default:
+		return state.ItemStatus{}, errors.New("invalid status number: " + s)
+	}
 }
 
 func validateHeader(header []string) error {
@@ -68,7 +73,8 @@ func validateRecord(header []string, record config.Record) error {
 		return errors.New("Invalid date format: " + record[0])
 	}
 	for _, val := range record[1:] {
-		if statusNum, err := strconv.Atoi(val); err != nil || statusNum >= len(itemStatusArr) {
+		// TODO: fix hardcoded max status
+		if statusNum, err := strconv.Atoi(val); err != nil || statusNum >= 2 {
 			return errors.New("Invalid status number: " + val)
 		}
 	}
@@ -76,16 +82,19 @@ func validateRecord(header []string, record config.Record) error {
 }
 
 func itemsToRecordStr(header config.Record, dateStr string, items []state.Item) (config.Record, error) {
-	validateHeader(header)
+	err := validateHeader(header)
+	if err != nil {
+		return nil, errors.New("Invalid header: " + err.Error())
+	}
 	if len(items) != len(header)-1 {
 		return nil, errors.New("Items length must match header length - 1")
 	}
 	record := make(config.Record, len(items)+1)
 	record[0] = dateStr
 	for _, item := range items {
-		statusNum := statusNum(item.Status)
+		statusNum := strconv.Itoa(int(item.Status.Kind))
 		if statusNum == "-1" {
-			return nil, errors.New("Invalid item status: " + item.Status.Text)
+			return nil, errors.New("Invalid item Kind: " + statusNum)
 		}
 		match := false
 		for j, subject := range header[1:] {
@@ -202,11 +211,14 @@ func recordStrToItems(header []string, record config.Record) ([]state.Item, erro
 	}
 	items := make([]state.Item, len(header)-1)
 	for i, header := range header[1:] {
-		statusNum, _ := strconv.Atoi(record[i+1]) // validateRecord() ensures this is safe
+		status, err := numStrToStatus(record[i+1])
+		if err != nil {
+			return nil, err
+		}
 		items[i] = state.Item{
 			Name:     header,
 			Selected: false,
-			Status:   itemStatusArr[statusNum],
+			Status:   status,
 		}
 	}
 	return items, nil
@@ -228,31 +240,6 @@ func (cs *CSVStore) GetItemsByDate(date time.Time) ([]state.Item, bool, error) {
 		}
 	}
 	return nil, false, nil
-}
-
-func ensureHeader(file *os.File) error {
-	if _, err := file.Seek(0, 0); err != nil {
-		return errors.New("Failed to seek: " + err.Error())
-	}
-	reader := csv.NewReader(file)
-	_, err := reader.Read()
-	if err != nil {
-		if err == io.EOF {
-			file.Seek(0, 0)
-			writer := csv.NewWriter(file)
-			defer writer.Flush()
-			header, err := config.GetHeader()
-			if err != nil {
-				return err
-			}
-			if err := writer.Write(header); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-	return nil
 }
 
 func (cs *CSVStore) writeAllRecords(records *config.Records) error {
@@ -300,7 +287,7 @@ func (cs *CSVStore) saveRecords(imap *state.ItemsMap) error {
 		recordsMap[formattedDate] = newRecord
 	}
 
-	finalRecords := make(config.Records, len(recordsMap)+1)
+	finalRecords := make(config.Records, 0, len(recordsMap)+1)
 	finalRecords = append(finalRecords, header)
 	for _, record := range recordsMap {
 		finalRecords = append(finalRecords, record)
