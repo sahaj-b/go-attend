@@ -7,23 +7,6 @@ import (
 	"github.com/sahaj-b/go-attend/state"
 )
 
-func TestStatusNum(t *testing.T) {
-	tests := []struct {
-		item   state.ItemStatus
-		Status string
-	}{
-		{state.Present, "1"},
-		{state.Absent, "0"},
-		{state.Cancelled, "2"},
-	}
-
-	for _, test := range tests {
-		if statusNum(test.item) != test.Status {
-			t.Errorf("Expected %s, got %s", test.Status, statusNum(test.item))
-		}
-	}
-}
-
 func TestValidateHeader(t *testing.T) {
 	tests := []struct {
 		header []string
@@ -48,15 +31,15 @@ func TestValidateHeader(t *testing.T) {
 func TestValidateRecord(t *testing.T) {
 	tests := []struct {
 		header []string
-		record Record
+		record csvRecord
 		isErr  bool
 	}{
 
-		{[]string{"Date", "English", "Math"}, Record{"01-10-2023", "1", "0"}, false},
-		{[]string{"Date", "English"}, Record{"01/10-2023", "1"}, true},
-		{[]string{"Date", "English"}, Record{"01-10-2023", "1", "0"}, true},
-		{[]string{"Date", "English"}, Record{}, true},
-		{[]string{"Date", "English", "Math"}, Record{"01-10-2023", "3", "0", "2"}, true},
+		{[]string{"Date", "English", "Math"}, csvRecord{"01-10-2023", "1", "0"}, false},
+		{[]string{"Date", "English"}, csvRecord{"01/10-2023", "1"}, true},
+		{[]string{"Date", "English"}, csvRecord{"01-10-2023", "1", "0"}, true},
+		{[]string{"Date", "English"}, csvRecord{}, true},
+		{[]string{"Date", "English", "Math"}, csvRecord{"01-10-2023", "3", "0", "2"}, true},
 	}
 
 	for _, test := range tests {
@@ -75,7 +58,7 @@ func TestItemsToRecord(t *testing.T) {
 		Name   string
 		date   string
 		items  []state.Item
-		record Record
+		record csvRecord
 		isErr  bool
 	}{
 		{
@@ -88,7 +71,7 @@ func TestItemsToRecord(t *testing.T) {
 				{Name: "History", Selected: false, Status: state.Absent},
 				{Name: "Geography", Selected: false, Status: state.Present},
 			},
-			record: Record{"10-01-2023", "1", "0", "1", "0", "1"},
+			record: csvRecord{"10-01-2023", "1", "0", "1", "0", "1"},
 			isErr:  false,
 		},
 		{
@@ -112,7 +95,7 @@ func TestItemsToRecord(t *testing.T) {
 				{Name: "English", Selected: false, Status: state.Present},
 				{Name: "History", Selected: false, Status: state.Absent},
 			},
-			record: Record{"01-03-2025", "1", "0", "1", "0", "1"},
+			record: csvRecord{"01-03-2025", "1", "0", "1", "0", "1"},
 			isErr:  false,
 		},
 		{
@@ -148,14 +131,14 @@ func TestRecordToItems(t *testing.T) {
 	tests := []struct {
 		Name    string
 		headers []string
-		record  Record
+		record  csvRecord
 		items   []state.Item
 		isErr   bool
 	}{
 		{
 			Name:    "valid record",
 			headers: []string{"Date", "Math", "English", "History"},
-			record:  Record{"10-01-2023", "1", "0", "2"},
+			record:  csvRecord{"10-01-2023", "1", "0", "2"},
 			items: []state.Item{
 				{Name: "Math", Selected: false, Status: state.Present},
 				{Name: "English", Selected: false, Status: state.Absent},
@@ -166,7 +149,7 @@ func TestRecordToItems(t *testing.T) {
 		{
 			Name:    "all attended",
 			headers: []string{"Date", "Math", "English", "History"},
-			record:  Record{"10-02-2023", "1", "1", "1"},
+			record:  csvRecord{"10-02-2023", "1", "1", "1"},
 			items: []state.Item{
 				{Name: "Math", Selected: false, Status: state.Present},
 				{Name: "English", Selected: false, Status: state.Present},
@@ -177,35 +160,35 @@ func TestRecordToItems(t *testing.T) {
 		{
 			Name:    "missing subject",
 			headers: []string{"Date", "Math", "English", "History"},
-			record:  Record{"10-04-2023", "1", "0"},
+			record:  csvRecord{"10-04-2023", "1", "0"},
 			items:   nil,
 			isErr:   true,
 		},
 		{
 			Name:    "extra field",
 			headers: []string{"Date", "Math", "English"},
-			record:  Record{"10-05-2023", "1", "0", "1", "0"},
+			record:  csvRecord{"10-05-2023", "1", "0", "1", "0"},
 			items:   nil,
 			isErr:   true,
 		},
 		{
 			Name:    "invalid Status value",
 			headers: []string{"Date", "Math", "English", "History"},
-			record:  Record{"10-06-2023", "10", "0", "1"},
+			record:  csvRecord{"10-06-2023", "10", "0", "1"},
 			items:   nil,
 			isErr:   true,
 		},
 		{
 			Name:    "empty record",
 			headers: []string{"Date", "Math", "English", "History"},
-			record:  Record{},
+			record:  csvRecord{},
 			items:   nil,
 			isErr:   true,
 		},
 		{
 			Name:    "empty headers",
 			headers: []string{},
-			record:  Record{"10-07-2023", "1", "0", "1"},
+			record:  csvRecord{"10-07-2023", "1", "0", "1"},
 			items:   nil,
 			isErr:   true,
 		},

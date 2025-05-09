@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"errors"
 	"fmt"
 	"github.com/sahaj-b/go-attend/state"
 	"os"
@@ -34,8 +33,8 @@ type Hint struct {
 }
 
 var hints = []Hint{
-	{"Space", "toggle attendance"},
-	{"c", "toggle cancelled"},
+	{"Space", "Present/Absent"},
+	{"c", "Mark UnHeld"},
 	{"Enter", "confirm"},
 	{"q", "quit"},
 }
@@ -47,12 +46,12 @@ func InitScreen() (restorer func(), err error) {
 	initStateBytes = initStateBytes[:len(initStateBytes)-1]
 
 	if err != nil {
-		return nil, errors.New("Failed to get terminal state")
+		return nil, fmt.Errorf("Failed to get terminal state")
 	}
 
 	err = exec.Command("stty", "-F", "/dev/tty", "raw", "-echo").Run()
 	if err != nil {
-		return nil, errors.New("Failed to set terminal to raw mode")
+		return nil, fmt.Errorf("Failed to set terminal to raw mode")
 	}
 	return func() {
 		err := exec.Command("stty", "-F", "/dev/tty", string(initStateBytes)).Run()
@@ -87,12 +86,13 @@ func dateComponent(date time.Time, atMaxDate bool) string {
 }
 
 func Render(s *state.State) {
-	output := "\r\n"
+	var output strings.Builder
+	output.WriteString("\r\n")
 	fmt.Printf(moveUp+clearDown, s.LastRenderedLines)
-	output += dateComponent(s.Date, s.AtMaxDate) + "\r\n"
-	output += "\r\n"
+	output.WriteString(dateComponent(s.Date, s.AtMaxDate) + "\r\n")
+	output.WriteString("\r\n")
 	if len(s.Items) == 0 {
-		output += "   " + Yellow + Bold + "No classes for this date" + ResetStyle + "\r\n"
+		output.WriteString("   " + Yellow + Bold + "No classes for this date" + ResetStyle + "\r\n")
 	} else {
 		for i, item := range s.Items {
 			itemStyle := ""
@@ -109,17 +109,18 @@ func Render(s *state.State) {
 				itemBullet = "✗"
 			}
 			if i == s.Cursor {
-				output += " " + cursorChar + Bold + " " + itemStyle + itemBullet + " " + item.Name + ResetStyle + "\r\n"
+				output.WriteString(" " + cursorChar + Bold + " " + itemStyle + itemBullet + " " + item.Name + ResetStyle + "\r\n")
 			} else {
-				output += "   " + itemStyle + itemBullet + " " + item.Name + ResetStyle + "\r\n"
+				output.WriteString("   " + itemStyle + itemBullet + " " + item.Name + ResetStyle + "\r\n")
 			}
 		}
 	}
-	output += "\r\n"
-	output += hintComponent(hints)
+	output.WriteString("\r\n")
+	output.WriteString(hintComponent(hints))
 	// renderedLines := len(state.items) + 3
-	s.LastRenderedLines = strings.Count(output, "\r\n")
-	fmt.Print(output)
+	outputStr := output.String()
+	s.LastRenderedLines = strings.Count(outputStr, "\r\n")
+	fmt.Print(outputStr)
 }
 
 func GetInput() (string, error) {

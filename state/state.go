@@ -1,9 +1,10 @@
 package state
 
 import (
-	"errors"
-	"github.com/sahaj-b/go-attend/config"
+	"fmt"
 	"time"
+
+	"github.com/sahaj-b/go-attend/config"
 )
 
 var CURR_DAY = time.Now().Truncate(time.Hour * 24)
@@ -69,7 +70,7 @@ func GetInitialState(repo Repository) (*State, error) {
 	}
 	err := state.loadItems(repo)
 	if err != nil {
-		return nil, errors.New("Error loading initial items: " + err.Error())
+		return nil, err
 	}
 	return state, nil
 }
@@ -139,14 +140,14 @@ func (s *State) loadItems(repo Repository) (err error) {
 	} else {
 		newItems, found, err := repo.GetItemsByDate(s.Date)
 		if err != nil {
-			return errors.New("Error getting items by date: " + err.Error())
+			return fmt.Errorf("Error getting items by date: %w", err)
 		}
 		if found {
 			s.Items = newItems
 		} else {
-			newItemsStr, err := config.GetNewItems(s.Date.Format("Monday"))
+			newItemsStr, err := config.GetNewItems(s.Date.Format("monday"))
 			if err != nil {
-				return errors.New("Error getting initial items: " + err.Error())
+				return fmt.Errorf("Error getting initial items: %w", err)
 			}
 			s.Items = make([]Item, len(newItemsStr))
 			for i, name := range newItemsStr {
@@ -177,7 +178,7 @@ func (s *State) stepDay(direction string, repo Repository) error {
 	case "prev":
 		s.Date = s.Date.AddDate(0, 0, -1)
 	default:
-		return errors.New("Invalid direction")
+		return fmt.Errorf("Invalid direction")
 	}
 
 	if s.Date.Equal(CURR_DAY) {
@@ -188,7 +189,7 @@ func (s *State) stepDay(direction string, repo Repository) error {
 
 	err := s.loadItems(repo)
 	if err != nil {
-		return errors.New("Error loading new items: " + err.Error())
+		return fmt.Errorf("Error loading new items: %w", err)
 	}
 	return nil
 }

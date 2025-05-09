@@ -2,34 +2,37 @@ package store
 
 import (
 	"encoding/csv"
-	"errors"
-	"github.com/sahaj-b/go-attend/config"
-	"github.com/sahaj-b/go-attend/state"
-	"io"
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/sahaj-b/go-attend/state"
+	"github.com/sahaj-b/go-attend/utils"
 )
 
 type CSVStore struct {
 	filePath      string
-	cachedRecords config.Records
+	cachedRecords csvRecords
 	cacheValid    bool
 }
+
+type csvRecord []string
+type csvRecords [][]string
 
 var DATE_FORMAT_STORE = "02-01-2006"
 
 func NewCSVStore() (*CSVStore, error) {
 	filePath, err := getDataFilePath()
 	if err != nil {
-		return nil, errors.New("Failed to get data file path: " + err.Error())
+		return nil, fmt.Errorf("Failed to get data(csv) file path: %w", err)
 	}
 	return &CSVStore{
 		filePath:      filePath,
-		cachedRecords: make(config.Records, 0),
+		cachedRecords: make(csvRecords, 0),
 		cacheValid:    false,
 	}, nil
 }
@@ -37,7 +40,7 @@ func NewCSVStore() (*CSVStore, error) {
 func numStrToStatus(s string) (state.ItemStatus, error) {
 	num, err := strconv.Atoi(s)
 	if err != nil {
-		return state.ItemStatus{}, errors.New("invalid status number string: " + s)
+		return state.ItemStatus{}, fmt.Errorf("invalid status number string: %v", s)
 	}
 	switch state.StatusKind(num) {
 	case state.PresentStatus:
@@ -47,54 +50,58 @@ func numStrToStatus(s string) (state.ItemStatus, error) {
 	case state.CancelledStatus:
 		return state.Cancelled, nil
 	default:
-		return state.ItemStatus{}, errors.New("invalid status number: " + s)
+		return state.ItemStatus{}, fmt.Errorf("invalid status number: %v", s)
 	}
 }
 
 func validateHeader(header []string) error {
 	if len(header) < 2 {
-		return errors.New("Header length must be at least 2")
+		return fmt.Errorf("Header length must be at least 2")
 	}
 	if header[0] != "Date" {
-		return errors.New("First header must be 'Date'")
+		return fmt.Errorf("First header must be 'Date'")
 	}
 	return nil
 }
 
-func validateRecord(header []string, record config.Record) error {
+func validateRecord(header []string, record csvRecord) error {
 	// assumes header is valid
 	if len(record) < 2 {
-		return errors.New("Record length must be at least 2")
+		return fmt.Errorf("Record length must be at least 2")
 	}
 	if len(record) != len(header) {
-		return errors.New("Record length must match header length")
+		return fmt.Errorf("Record length must match header length")
 	}
 	if _, err := time.Parse(DATE_FORMAT_STORE, record[0]); err != nil {
-		return errors.New("Invalid date format: " + record[0])
+		return fmt.Errorf("Invalid date format: %v", record[0])
 	}
 	for _, val := range record[1:] {
 		// TODO: fix hardcoded max status
 		if statusNum, err := strconv.Atoi(val); err != nil || statusNum >= 2 {
-			return errors.New("Invalid status number: " + val)
+			return fmt.Errorf("Invalid status number: %v", val)
 		}
 	}
 	return nil
 }
 
-func itemsToRecordStr(header config.Record, dateStr string, items []state.Item) (config.Record, error) {
+func validateRecords(records *csvRecords) error {
+	return nil
+}
+
+func itemsToRecordStr(header csvRecord, dateStr string, items []state.Item) (csvRecord, error) {
 	err := validateHeader(header)
 	if err != nil {
-		return nil, errors.New("Invalid header: " + err.Error())
+		return nil, fmt.Errorf("Invalid header: %w", err)
 	}
 	if len(items) != len(header)-1 {
-		return nil, errors.New("Items length must match header length - 1")
+		return nil, fmt.Errorf("Items length must match header length - 1")
 	}
-	record := make(config.Record, len(items)+1)
+	record := make(csvRecord, len(items)+1)
 	record[0] = dateStr
 	for _, item := range items {
 		statusNum := strconv.Itoa(int(item.Status.Kind))
 		if statusNum == "-1" {
-			return nil, errors.New("Invalid item Kind: " + statusNum)
+			return nil, fmt.Errorf("Invalid item Kind: %v", statusNum)
 		}
 		match := false
 		for j, subject := range header[1:] {
@@ -105,7 +112,7 @@ func itemsToRecordStr(header config.Record, dateStr string, items []state.Item) 
 			}
 		}
 		if !match {
-			return nil, errors.New("No '" + item.Name + "' in header")
+			return nil, fmt.Errorf("No '%v' in header", item.Name)
 		}
 	}
 	return record, nil
@@ -136,54 +143,24 @@ func getDataFilePath() (string, error) {
 		}
 		path = filepath.Join(appData, "go-attend", "attendance.csv")
 	default:
-		return "", errors.New("Unsupported OS: " + currOS)
+		return "", fmt.Errorf("Unsupported OS: %v", currOS)
 	}
 	return path, nil
 }
 
-func (cs *CSVStore) getDataFile(mode string) (dataFile *os.File, err error) {
-	storePath, err := getDataFilePath()
-	if err != nil {
-		return nil, err
-	}
-	err = os.MkdirAll(filepath.Dir(storePath), 0755)
-	if err != nil {
-		return nil, err
-	}
-	flags := os.O_CREATE
-	switch mode {
-	case "r":
-		flags |= os.O_RDONLY
-	case "w":
-		flags |= os.O_WRONLY
-	case "a":
-		flags |= os.O_APPEND | os.O_WRONLY
-	case "rw":
-		flags |= os.O_RDWR
-	default:
-		return nil, errors.New("Invalid mode: " + mode)
-	}
-
-	dataFile, err = os.OpenFile(storePath, flags, 0644)
-	if err != nil {
-		return nil, err
-	}
-	return dataFile, nil
-}
-
-func (cs *CSVStore) GetHeader() (config.Record, error) {
+func (cs *CSVStore) GetHeader() (csvRecord, error) {
 	records, err := cs.GetAllRecords()
 	if err != nil {
-		return nil, errors.New("Failed to fetch records: " + err.Error())
+		return nil, fmt.Errorf("Failed to fetch records: %w", err)
 	}
 	return records[0], nil
 }
 
-func (cs *CSVStore) GetAllRecords() (config.Records, error) {
+func (cs *CSVStore) GetAllRecords() (csvRecords, error) {
 	if cs.cacheValid {
 		return cs.cachedRecords, nil
 	}
-	file, err := cs.getDataFile("r")
+	file, err := utils.EnsureAndGetFile(cs.filePath, "r")
 	if err != nil {
 		return nil, err
 	}
@@ -193,21 +170,21 @@ func (cs *CSVStore) GetAllRecords() (config.Records, error) {
 	if err != nil {
 		return nil, err
 	}
-	records := config.Records(csvrecords)
-	if err := config.ValidateAndFixRecords(&records); err != nil {
-		return nil, errors.New("Corrupted data file: " + err.Error())
+	records := csvRecords(csvrecords)
+	if err := validateRecords(&records); err != nil {
+		return nil, fmt.Errorf("Corrupted data file: %w", err)
 	}
 	cs.cachedRecords = records
 	cs.cacheValid = true
 	return records, nil
 }
 
-func recordStrToItems(header []string, record config.Record) ([]state.Item, error) {
+func recordStrToItems(header []string, record csvRecord) ([]state.Item, error) {
 	if err := validateHeader(header); err != nil {
-		return nil, errors.New("Invalid header: " + err.Error())
+		return nil, fmt.Errorf("Invalid header: %w", err)
 	}
 	if err := validateRecord(header, record); err != nil {
-		return nil, errors.New("Invalid record: " + err.Error())
+		return nil, fmt.Errorf("Invalid record: %w", err)
 	}
 	items := make([]state.Item, len(header)-1)
 	for i, header := range header[1:] {
@@ -227,14 +204,14 @@ func recordStrToItems(header []string, record config.Record) ([]state.Item, erro
 func (cs *CSVStore) GetItemsByDate(date time.Time) ([]state.Item, bool, error) {
 	records, err := cs.GetAllRecords()
 	if err != nil {
-		return nil, false, errors.New("Failed to fetch records: " + err.Error())
+		return nil, false, fmt.Errorf("Failed to fetch records: %w", err)
 	}
 	dateStr := date.Format(DATE_FORMAT_STORE)
 	for _, record := range records {
 		if record[0] == dateStr {
 			items, err := recordStrToItems((records)[0], record)
 			if err != nil {
-				return nil, false, errors.New("Couldn't convert record to Items: " + err.Error())
+				return nil, false, fmt.Errorf("Couldn't convert record to Items: %w", err)
 			}
 			return items, true, nil
 		}
@@ -242,8 +219,8 @@ func (cs *CSVStore) GetItemsByDate(date time.Time) ([]state.Item, bool, error) {
 	return nil, false, nil
 }
 
-func (cs *CSVStore) writeAllRecords(records *config.Records) error {
-	file, err := cs.getDataFile("w")
+func (cs *CSVStore) writeAllRecords(records *csvRecords) error {
+	file, err := utils.EnsureAndGetFile(cs.filePath, "w")
 	if err != nil {
 		return err
 	}
@@ -259,15 +236,11 @@ func (cs *CSVStore) writeAllRecords(records *config.Records) error {
 func (cs *CSVStore) saveRecords(imap *state.ItemsMap) error {
 	allRecords, err := cs.GetAllRecords()
 	if err != nil {
-		return errors.New("Failed to fetch records: " + err.Error())
+		return fmt.Errorf("Failed to fetch records: %w", err)
 	}
-	// TODO: handle header validation
-	header, err := config.GetHeader()
-	if err != nil {
-		return errors.New("Failed to get header from config: " + err.Error())
-	}
-
-	recordsMap := make(map[string]config.Record)
+	// TODO: handle header validation from cfg?
+	header := allRecords[0]
+	recordsMap := make(map[string]csvRecord)
 	for i, record := range allRecords {
 		if i == 0 {
 			continue
@@ -279,22 +252,22 @@ func (cs *CSVStore) saveRecords(imap *state.ItemsMap) error {
 		formattedDate := date.Format(DATE_FORMAT_STORE)
 		newRecord, err := itemsToRecordStr(header, formattedDate, items)
 		if err != nil {
-			return errors.New("Failed to convert items to record: " + err.Error())
+			return fmt.Errorf("Failed to convert items to record: %w", err)
 		}
 		if err := validateRecord(header, newRecord); err != nil {
-			return errors.New("Invalid record: " + err.Error())
+			return fmt.Errorf("Invalid record: %w", err)
 		}
 		recordsMap[formattedDate] = newRecord
 	}
 
-	finalRecords := make(config.Records, 0, len(recordsMap)+1)
+	finalRecords := make(csvRecords, 0, len(recordsMap)+1)
 	finalRecords = append(finalRecords, header)
 	for _, record := range recordsMap {
 		finalRecords = append(finalRecords, record)
 	}
 	err = cs.writeAllRecords(&finalRecords)
 	if err != nil {
-		return errors.New("Failed to write records: " + err.Error())
+		return fmt.Errorf("Failed to write records: %w", err)
 	}
 	cs.cachedRecords = finalRecords
 	cs.cacheValid = true
@@ -306,7 +279,7 @@ func (cs *CSVStore) SaveState(s *state.State) error {
 	s.CachedDates[s.Date] = s.Items
 	err := cs.saveRecords(&s.CachedDates)
 	if err != nil {
-		return errors.New("Failed to save: " + err.Error())
+		return fmt.Errorf("Failed to save: %w", err)
 	}
 	return nil
 }

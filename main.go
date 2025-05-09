@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/sahaj-b/go-attend/config"
 	"github.com/sahaj-b/go-attend/state"
 	"github.com/sahaj-b/go-attend/store"
 	"github.com/sahaj-b/go-attend/ui"
@@ -18,15 +17,6 @@ func main() {
 	csvStore, err := store.NewCSVStore()
 	if err != nil {
 		ui.Error("Error creating CSV store:" + err.Error())
-		return
-	}
-	records, err := csvStore.GetAllRecords()
-	if err != nil {
-		ui.Error("Error getting records:" + err.Error())
-		return
-	}
-	if err := config.ValidateAndFixRecords(&records); err != nil {
-		ui.Error("Error validating records:" + err.Error())
 		return
 	}
 	currState, err := state.GetInitialState(csvStore)

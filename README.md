@@ -11,9 +11,9 @@
   - [x] refactor `store.go`: make CSVStore implementing DataStore interface
   - [x] chore: split into different packages
   - [x] refactor: fix cyclic imports
-  - [ ] use strings.Builder instead of concatenation?
-  - [ ] `config_parser.go`: parse timetable, startDate, semester?, etc
-  - [ ] add tests for `config_parser.go`
+  - [x] use strings.Builder instead of concatenation?
+  - [ ] `ini_parser.go`: parse timetable, startDate, semester?, etc
+  - [ ] add tests for `ini_parser.go`
   - [ ] refactor: new attendance type -1/NA
   - [ ] complete validations in `config.go`
   - [ ] fix and validate records to match config/schema/timetable changes

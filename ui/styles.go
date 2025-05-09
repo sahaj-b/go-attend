@@ -12,4 +12,5 @@ const (
 	Yellow     = "\x1b[33m"
 	Bggray     = "\x1b[48;5;236m"
 	Strike     = "\x1b[9m"
+	Disabled   = "\x1b[38;5;240m"
 )

@@ -1,22 +1,25 @@
 package config
 
-type Record []string
-type Records [][]string
+import "fmt"
 
-// TODO: validate and fix according to config
-func ValidateAndFixRecords(records *Records) error { return nil }
+type subjectsSet map[string]struct{} // golang trick for making a set, struct{} takes 0 bytes
 
-func GetHeader() (Record, error) {
-	// TODO: add cahching
-	return Record{"Date", "English", "Math", "Science", "History", "Geography"}, nil
+func GetAllSubjects() subjectsSet {
+	cfg := GetCfg()
+	subjectsSet := subjectsSet{}
+	for _, daySubjects := range cfg.Schedule {
+		for _, subject := range daySubjects {
+			subjectsSet[subject] = struct{}{}
+		}
+	}
+	return subjectsSet
 }
 
 func GetNewItems(weekday string) ([]string, error) {
-	return []string{
-		"English",
-		"Math",
-		"Science",
-		"History",
-		"Geography",
-	}, nil
+	cfg := GetCfg()
+	subjects, ok := cfg.Schedule[weekday]
+	if !ok {
+		return nil, fmt.Errorf("Invalid weekday: %v", weekday)
+	}
+	return subjects, nil
 }
