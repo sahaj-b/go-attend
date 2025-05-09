@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/sahaj-b/go-attend/state"
 	"github.com/sahaj-b/go-attend/store"
 	"github.com/sahaj-b/go-attend/ui"

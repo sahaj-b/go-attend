@@ -7,7 +7,7 @@ import (
 )
 
 func EnsureAndGetFile(path string, mode string) (dataFile *os.File, err error) {
-	err = os.MkdirAll(filepath.Dir(path), 0755)
+	err = os.MkdirAll(filepath.Dir(path), 0o755)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func EnsureAndGetFile(path string, mode string) (dataFile *os.File, err error) {
 		return nil, fmt.Errorf("Invalid mode: %v", mode)
 	}
 
-	dataFile, err = os.OpenFile(path, flags, 0644)
+	dataFile, err = os.OpenFile(path, flags, 0o644)
 	if err != nil {
 		return nil, err
 	}

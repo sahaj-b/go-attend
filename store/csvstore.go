@@ -20,8 +20,10 @@ type CSVStore struct {
 	cacheValid    bool
 }
 
-type csvRecord []string
-type csvRecords [][]string
+type (
+	csvRecord  []string
+	csvRecords [][]string
+)
 
 var DATE_FORMAT_STORE = "02-01-2006"
 

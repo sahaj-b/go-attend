@@ -34,7 +34,6 @@ func TestValidateRecord(t *testing.T) {
 		record csvRecord
 		isErr  bool
 	}{
-
 		{[]string{"Date", "English", "Math"}, csvRecord{"01-10-2023", "1", "0"}, false},
 		{[]string{"Date", "English"}, csvRecord{"01/10-2023", "1"}, true},
 		{[]string{"Date", "English"}, csvRecord{"01-10-2023", "1", "0"}, true},

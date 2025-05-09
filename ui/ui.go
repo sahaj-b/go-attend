@@ -2,11 +2,12 @@ package ui
 
 import (
 	"fmt"
-	"github.com/sahaj-b/go-attend/state"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/sahaj-b/go-attend/state"
 )
 
 const (

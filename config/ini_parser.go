@@ -48,8 +48,8 @@ func writeStartDateInFile(file *os.File) error {
 	}
 
 	var lines []string
-	var targetLineIndex = -1
-	var keyFoundAndValueEmpty = false
+	targetLineIndex := -1
+	keyFoundAndValueEmpty := false
 
 	scanner := bufio.NewScanner(file)
 	currentLineNumber := 0
