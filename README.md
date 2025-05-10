@@ -17,6 +17,7 @@
   - [ ] add tests for `ini_parser.go`
   - [x] handle schedule change (subjects added/removed/both)
   - [ ] test schedule change handling
+  - [ ] save only if state is changed
   - [ ] handle unscheduled_as_cancelled config
   - [ ] complete validations in `config.go`
   - [ ] add tests for `config.go`
