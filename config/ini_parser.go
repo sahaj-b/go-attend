@@ -2,8 +2,8 @@ package config
 
 import (
 	"bufio"
+	_ "embed"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,6 +13,9 @@ import (
 
 	"github.com/sahaj-b/go-attend/utils"
 )
+
+//go:embed config_template.ini
+var configTemplateContent string
 
 type Config struct {
 	StartDate              time.Time
@@ -30,6 +33,7 @@ const (
 	keyStartDate              = "start_date"
 	keyUnscheduledAsCancelled = "unscheduled_as_cancelled"
 	sectionSchedule           = "schedule"
+	sectionGeneral            = "general"
 )
 
 func getCfgFilePath() (string, error) {
@@ -41,55 +45,27 @@ func getCfgFilePath() (string, error) {
 	return path, nil
 }
 
-// TODO: Review
-func writeStartDateInFile(file *os.File) error {
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("failed to seek to beginning of file: %w", err)
+func ensureConfig() error {
+	cfgFilePath, err := getCfgFilePath()
+	if err != nil {
+		return fmt.Errorf("Failed to get config file path: %w", err)
 	}
-
-	var lines []string
-	targetLineIndex := -1
-	keyFoundAndValueEmpty := false
-
-	scanner := bufio.NewScanner(file)
-	currentLineNumber := 0
-	for scanner.Scan() {
-		originalLine := scanner.Text()
-		lines = append(lines, originalLine)
-
-		if targetLineIndex == -1 {
-			trimmedLine := strings.TrimSpace(originalLine)
-			parts := strings.SplitN(trimmedLine, "=", 2)
-
-			if len(parts) > 0 && strings.TrimSpace(parts[0]) == keyStartDate {
-				targetLineIndex = currentLineNumber
-				if len(parts) == 1 || (len(parts) == 2 && strings.TrimSpace(parts[1]) == "") {
-					keyFoundAndValueEmpty = true
-				}
-			}
+	if _, err := os.Stat(cfgFilePath); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Dir(cfgFilePath), 0o755)
+		if err != nil {
+			return fmt.Errorf("Failed to create config directory: %w", err)
 		}
-		currentLineNumber++
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading config file content: %w", err)
-	}
-	if keyFoundAndValueEmpty {
-		newDateString := time.Now().Format("02-01-2006")
-		lines[targetLineIndex] = keyStartDate + " = " + newDateString
-		if _, err := file.Seek(0, io.SeekStart); err != nil {
-			return fmt.Errorf("failed to seek to beginning: %w", err)
+		file, err := os.Create(cfgFilePath)
+		if err != nil {
+			return fmt.Errorf("Failed to create config file: %w", err)
 		}
-		writer := bufio.NewWriter(file)
-		for _, line := range lines {
-			if _, err := writer.WriteString(line + "\n"); err != nil {
-				writer.Flush()
-				return fmt.Errorf("failed to write line back to file: %w", err)
-			}
-		}
-		writer.Flush()
-	}
+		defer file.Close()
 
+		_, err = file.WriteString(configTemplateContent)
+		if err != nil {
+			return fmt.Errorf("Failed to write config template to %s: %w", cfgFilePath, err)
+		}
+	}
 	return nil
 }
 
@@ -123,7 +99,7 @@ func parseIni(file *os.File) (Config, error) {
 			key := strings.ToLower(strings.TrimSpace(keyValue[0]))
 			value := strings.TrimSpace(keyValue[1])
 			switch section {
-			case "":
+			case sectionGeneral:
 				{
 					switch key {
 
@@ -148,26 +124,28 @@ func parseIni(file *os.File) (Config, error) {
 						}
 
 					default:
-						return Config{}, fmt.Errorf("Invalid key: %v in Default section", key)
+						return Config{}, fmt.Errorf("Invalid key: %v in [%v] section", key, section)
 					}
 				}
 
 			case sectionSchedule:
 				{
-					if _, err := time.Parse("monday", key); err != nil {
+					if _, ok := cfg.Schedule[key]; !ok {
 						return Config{}, fmt.Errorf("Invalid key in schedule: %v. Expected a day of the week(e.g., monday)", key)
 					}
 					subjects := strings.Split(value, ",")
-					for i := range subjects {
-						subjects[i] = strings.TrimSpace(subjects[i])
-						if len(subjects[i]) == 0 {
-							return Config{}, fmt.Errorf("Subject cannot be empty: %v", line)
+					if len(subjects[0]) != 0 {
+						for i := range subjects {
+							subjects[i] = strings.TrimSpace(subjects[i])
+							if len(subjects[i]) == 0 {
+								return Config{}, fmt.Errorf("Subject cannot be empty: %v", line)
+							}
 						}
 					}
 					cfg.Schedule[key] = subjects
 				}
 			default:
-				return Config{}, fmt.Errorf("Invalid section: [%v]", section)
+				return Config{}, fmt.Errorf("The key %v is not under [general] or [schedule] section", key)
 			}
 		}
 	}
@@ -182,6 +160,12 @@ func loadAndParseConfig() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+
+	err = ensureConfig()
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfgFile, err := utils.EnsureAndGetFile(cfgFilePath, "r")
 	if err != nil {
 		return Config{}, fmt.Errorf("Failed to open config file: %v: %w", cfgFilePath, err)

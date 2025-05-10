@@ -145,17 +145,21 @@ func (s *State) loadItems(repo Repository) (err error) {
 		if found {
 			s.Items = newItems
 		} else {
-			newItemsStr, err := config.GetNewItems(s.Date.Format("monday"))
+			subjects, err := config.GetNewItems(s.Date.Format("Monday"))
 			if err != nil {
 				return fmt.Errorf("Error getting initial items: %w", err)
 			}
-			s.Items = make([]Item, len(newItemsStr))
-			for i, name := range newItemsStr {
-				s.Items[i] = Item{
-					Name:     name,
-					Selected: false,
-					Status:   Absent,
+			if len(subjects[0]) != 0 {
+				s.Items = make([]Item, len(subjects))
+				for i, name := range subjects {
+					s.Items[i] = Item{
+						Name:     name,
+						Selected: false,
+						Status:   Absent,
+					}
 				}
+			} else {
+				s.Items = []Item{}
 			}
 		}
 	}

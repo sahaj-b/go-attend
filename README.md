@@ -13,14 +13,15 @@
   - [x] refactor: fix cyclic imports
   - [x] use strings.Builder instead of concatenation?
   - [x] `ini_parser.go`: parse timetable, startDate, etc
-  - [ ] copy template config and update startDate on first run
+  - [x] copy template config on first run
   - [ ] add tests for `ini_parser.go`
-  - [ ] refactor: new attendance type -1/NA
+  - [x] handle schedule change (subjects added/removed/both)
+  - [ ] test schedule change handling
+  - [ ] handle unscheduled_as_cancelled config
   - [ ] complete validations in `config.go`
-  - [ ] fix and validate records to match config/schema/timetable changes
   - [ ] add tests for `config.go`
   - [ ] make attendance view UI: subjectwise, weekdaywise, etc
-  - [ ] handle arguments: start/end date, etc
+  - [ ] handle arguments: start/end, date, remove record, rename subject etc
   - [ ] add tests for attendance view UI?
   - [ ] support windows using `term` package?
   - [ ] CI/CD: github actions, releases

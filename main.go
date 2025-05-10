@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 
+	"github.com/sahaj-b/go-attend/config"
 	"github.com/sahaj-b/go-attend/state"
 	"github.com/sahaj-b/go-attend/store"
 	"github.com/sahaj-b/go-attend/ui"
 )
 
 func main() {
+	config.GetCfg()
 	restorer, err := ui.InitScreen()
 	if err != nil {
 		ui.Error("Error initializing terminal:" + err.Error())
@@ -39,7 +41,7 @@ func main() {
 	fmt.Println()
 	if confirm {
 		if err := csvStore.SaveState(currState); err != nil {
-			ui.Error("Error saving items:" + err.Error())
+			ui.Error("Error saving items: " + err.Error())
 		} else {
 			ui.Success("Saved successfully")
 		}

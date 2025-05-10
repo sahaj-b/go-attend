@@ -42,7 +42,7 @@ func TestValidateRecord(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := validateRecord(test.header, test.record)
+		err := validateRecord(test.record)
 		if test.isErr && err == nil {
 			t.Errorf("Expected error for record %v, got nil", test.record)
 		} else if !test.isErr && err != nil {

@@ -35,9 +35,9 @@ type Hint struct {
 
 var hints = []Hint{
 	{"Space", "Present/Absent"},
-	{"c", "Mark UnHeld"},
-	{"Enter", "confirm"},
-	{"q", "quit"},
+	{"c", "Mark Cancelled"},
+	{"Enter", "Confirm"},
+	{"q", "Quit"},
 }
 
 func InitScreen() (restorer func(), err error) {
@@ -86,6 +86,10 @@ func dateComponent(date time.Time, atMaxDate bool) string {
 		" " + rightArrow
 }
 
+func noClassesComponent(weekday string) string {
+	return "   " + Yellow + Bold + "No classes for " + weekday + ResetStyle
+}
+
 func Render(s *state.State) {
 	var output strings.Builder
 	output.WriteString("\r\n")
@@ -93,7 +97,7 @@ func Render(s *state.State) {
 	output.WriteString(dateComponent(s.Date, s.AtMaxDate) + "\r\n")
 	output.WriteString("\r\n")
 	if len(s.Items) == 0 {
-		output.WriteString("   " + Yellow + Bold + "No classes for this date" + ResetStyle + "\r\n")
+		output.WriteString("\r\n" + noClassesComponent(s.Date.Format("Monday")) + "\r\n\r\n")
 	} else {
 		for i, item := range s.Items {
 			itemStyle := ""
