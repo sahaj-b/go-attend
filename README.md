@@ -12,7 +12,8 @@
   - [x] chore: split into different packages
   - [x] refactor: fix cyclic imports
   - [x] use strings.Builder instead of concatenation?
-  - [ ] `ini_parser.go`: parse timetable, startDate, semester?, etc
+  - [x] `ini_parser.go`: parse timetable, startDate, etc
+  - [ ] copy template config and update startDate on first run
   - [ ] add tests for `ini_parser.go`
   - [ ] refactor: new attendance type -1/NA
   - [ ] complete validations in `config.go`
