@@ -90,6 +90,23 @@ func noClassesComponent(weekday string) string {
 	return "   " + Yellow + Bold + "No classes for " + weekday + ResetStyle
 }
 
+func getStyleAndBullet(item state.Item) (string, string) {
+	itemStyle := ""
+	itemBullet := ""
+	switch item.Status {
+	case state.Present:
+		itemStyle = Green
+		itemBullet = "●"
+	case state.Absent:
+		itemStyle = ""
+		itemBullet = "○"
+	case state.Cancelled:
+		itemStyle = Gray + Strike
+		itemBullet = "✗"
+	}
+	return itemStyle, itemBullet
+}
+
 func Render(s *state.State) {
 	var output strings.Builder
 	output.WriteString("\r\n")
@@ -100,19 +117,7 @@ func Render(s *state.State) {
 		output.WriteString("\r\n" + noClassesComponent(s.Date.Format("Monday")) + "\r\n\r\n")
 	} else {
 		for i, item := range s.Items {
-			itemStyle := ""
-			itemBullet := ""
-			switch item.Status.Kind {
-			case state.PresentStatus:
-				itemStyle = Green
-				itemBullet = "●"
-			case state.AbsentStatus:
-				itemStyle = ""
-				itemBullet = "○"
-			case state.CancelledStatus:
-				itemStyle = Gray + Strike
-				itemBullet = "✗"
-			}
+			itemStyle, itemBullet := getStyleAndBullet(item)
 			if i == s.Cursor {
 				output.WriteString(" " + cursorChar + Bold + " " + itemStyle + itemBullet + " " + item.Name + ResetStyle + "\r\n")
 			} else {

@@ -41,37 +41,29 @@ func NewCSVStore() (*CSVStore, error) {
 	}, nil
 }
 
-func numStrToStatus(s string) (state.ItemStatus, error) {
-	num, err := strconv.Atoi(s)
-	if err != nil {
-		return state.ItemStatus{}, fmt.Errorf("invalid status number string: %v", s)
-	}
-	switch state.StatusKind(num) {
-	case state.PresentStatus:
-		return state.Present, nil
-	case state.AbsentStatus:
-		return state.Absent, nil
-	case state.CancelledStatus:
-		return state.Cancelled, nil
-	default:
-		return state.ItemStatus{}, fmt.Errorf("invalid status number: %v", s)
-	}
-}
-
 func validateHeader(header []string) error {
-	if len(header) < 1 {
-		return fmt.Errorf("Header length must be at least 1")
+	if len(header) < 2 {
+		return fmt.Errorf("Header length must be at least 2")
 	}
 	if header[0] != "Date" {
 		return fmt.Errorf("First header must be 'Date'")
 	}
+	subjects := make(map[string]bool)
+	for _, subject := range header[1:] {
+		if _, exists := subjects[subject]; exists {
+			return fmt.Errorf("Duplicate subject found: %v", subject)
+		}
+	}
 	return nil
 }
 
-func validateRecord(record csvRecord) error {
-	// assumes header is valid
+func validateRecord(header []string, record csvRecord) error {
+	// assumes header is valid 🙏
 	if len(record) < 2 {
 		return fmt.Errorf("Record length must be at least 2")
+	}
+	if len(record) > len(header) {
+		return fmt.Errorf("Record length is greater than header")
 	}
 	// not checking length because header may be bigger for new subjects
 	// if len(record) != len(header) {
@@ -98,27 +90,20 @@ func itemsToRecordStr(header csvRecord, dateStr string, items []state.Item) (csv
 	if err != nil {
 		return nil, fmt.Errorf("Invalid header: %w", err)
 	}
-	// if len(items) != len(header)-1 {
-	// 	return nil, fmt.Errorf("Items length must match header length - 1")
-	// }
-	record := make(csvRecord, len(header))
+	record := make(csvRecord, len(header)) // populate with empty strings
 	record[0] = dateStr
 	for _, item := range items {
-		statusNum := strconv.Itoa(int(item.Status.Kind))
-		if statusNum == "-1" {
-			return nil, fmt.Errorf("Invalid item Kind: %v", statusNum)
+		kindAsInt := int(item.Status)
+		// TODO: fix hardcoded max status kind
+		if kindAsInt < 0 || kindAsInt > 2 {
+			return nil, fmt.Errorf("invalid item Kind: %d", kindAsInt)
 		}
-		match := false
-		for j, subject := range header[1:] {
-			if item.Name == subject {
-				record[j+1] = statusNum
-				match = true
-				break
-			}
-		}
-		if !match {
+
+		idx := slices.Index(header[1:], item.Name)
+		if idx == -1 {
 			return nil, fmt.Errorf("No '%v' in header", item.Name)
 		}
+		record[idx+1] = strconv.Itoa(kindAsInt) // enum to string
 	}
 	return record, nil
 }
@@ -204,12 +189,12 @@ func recordStrToItems(header []string, record csvRecord) ([]state.Item, error) {
 	if err := validateHeader(header); err != nil {
 		return nil, fmt.Errorf("Invalid header: %w", err)
 	}
-	if err := validateRecord(record); err != nil {
+	if err := validateRecord(header, record); err != nil {
 		return nil, fmt.Errorf("Invalid record: %w", err)
 	}
 	items := []state.Item{}
 	for i, subject := range header[1:] {
-		if i+1 >= len(record)-1 {
+		if i+1 >= len(record) {
 			// record is shorter than header. this means header is updated with new subjects for future records
 			// so we can ignore the rest of the header
 			break
@@ -219,14 +204,14 @@ func recordStrToItems(header []string, record csvRecord) ([]state.Item, error) {
 			// so we can ignore this subject
 			continue
 		}
-		status, err := numStrToStatus(record[i+1])
+		status, err := strconv.Atoi(record[i+1])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Invalid status number: %v", record[i+1])
 		}
 		items = append(items, state.Item{
 			Name:     subject,
 			Selected: false,
-			Status:   status,
+			Status:   state.ItemStatus(status),
 		})
 	}
 
@@ -334,7 +319,7 @@ func (cs *CSVStore) saveRecords(imap *state.ItemsMap) error {
 		if err != nil {
 			return fmt.Errorf("Failed to convert items to record: %w", err)
 		}
-		if err := validateRecord(newRecord); err != nil {
+		if err := validateRecord(header, newRecord); err != nil {
 			return fmt.Errorf("Invalid record: %w", err)
 		}
 		recordsMap[formattedDate] = newRecord

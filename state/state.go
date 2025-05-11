@@ -24,23 +24,12 @@ type Repository interface {
 	SaveState(s *State) error
 }
 
-type StatusKind int
+type ItemStatus int
 
 const (
-	PresentStatus StatusKind = iota
-	AbsentStatus
-	CancelledStatus
-)
-
-type ItemStatus struct {
-	Kind StatusKind
-	Text string
-}
-
-var (
-	Present   ItemStatus = ItemStatus{Kind: PresentStatus, Text: "Attended"}
-	Absent    ItemStatus = ItemStatus{Kind: AbsentStatus, Text: "Absent"}
-	Cancelled ItemStatus = ItemStatus{Kind: CancelledStatus, Text: "Cancelled"}
+	Present ItemStatus = iota
+	Absent
+	Cancelled
 )
 
 type Item struct {
@@ -57,6 +46,7 @@ type State struct {
 	Items             []Item
 	CachedDates       ItemsMap
 	Cursor            int
+	changed           bool
 	LastRenderedLines int
 }
 
@@ -66,6 +56,7 @@ func GetInitialState(repo Repository) (*State, error) {
 		AtMaxDate:         true,
 		CachedDates:       make(ItemsMap),
 		Cursor:            0,
+		changed:           false,
 		LastRenderedLines: -1, // to prevent clearing cli command
 	}
 	err := state.loadItems(repo)
@@ -76,6 +67,7 @@ func GetInitialState(repo Repository) (*State, error) {
 }
 
 func (s *State) toggleCancel() {
+	s.changed = true
 	if s.Items[s.Cursor].Status == Cancelled {
 		s.Items[s.Cursor].Status = Absent
 	} else {
@@ -84,6 +76,7 @@ func (s *State) toggleCancel() {
 }
 
 func (s *State) toggleItem() {
+	s.changed = true
 	switch s.Items[s.Cursor].Status {
 	case Present:
 		s.Items[s.Cursor].Status = Absent
@@ -135,6 +128,7 @@ func HandleInput(s *State, input string, repo Repository) (confirm bool, quit bo
 }
 
 func (s *State) loadItems(repo Repository) (err error) {
+	s.changed = true
 	if newItems, found := s.CachedDates[s.Date]; found {
 		s.Items = newItems
 	} else {
@@ -144,22 +138,24 @@ func (s *State) loadItems(repo Repository) (err error) {
 		}
 		if found {
 			s.Items = newItems
+			s.changed = false
 		} else {
 			subjects, err := config.GetNewItems(s.Date.Format("Monday"))
 			if err != nil {
 				return fmt.Errorf("Error getting initial items: %w", err)
 			}
-			if len(subjects[0]) != 0 {
-				s.Items = make([]Item, len(subjects))
-				for i, name := range subjects {
-					s.Items[i] = Item{
-						Name:     name,
-						Selected: false,
-						Status:   Absent,
+			s.Items = []Item{}
+			if len(subjects) > 0 {
+				if !(len(subjects) == 1 && subjects[0] == "") {
+					s.Items = make([]Item, len(subjects))
+					for i, name := range subjects {
+						s.Items[i] = Item{
+							Name:     name,
+							Selected: false,
+							Status:   Absent,
+						}
 					}
 				}
-			} else {
-				s.Items = []Item{}
 			}
 		}
 	}
@@ -171,8 +167,10 @@ func (s *State) loadItems(repo Repository) (err error) {
 }
 
 func (s *State) stepDay(direction string, repo Repository) error {
-	if _, ok := s.CachedDates[s.Date]; !ok {
-		s.CachedDates[s.Date] = s.Items
+	if !s.AtMaxDate {
+		if s.changed {
+			s.CachedDates[s.Date] = s.Items
+		}
 	}
 	switch direction {
 	case "next":

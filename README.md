@@ -14,10 +14,11 @@
   - [x] use strings.Builder instead of concatenation?
   - [x] `ini_parser.go`: parse timetable, startDate, etc
   - [x] copy template config on first run
-  - [ ] add tests for `ini_parser.go`
   - [x] handle schedule change (subjects added/removed/both)
-  - [ ] test schedule change handling
-  - [ ] save only if state is changed
+  - [x] fix store tests
+  - [x] handle duplicate subjects
+  - [x] add tests for `ini_parser.go`
+  - [x] save only if state is changed
   - [ ] handle unscheduled_as_cancelled config
   - [ ] complete validations in `config.go`
   - [ ] add tests for `config.go`
