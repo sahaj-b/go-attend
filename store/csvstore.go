@@ -65,15 +65,12 @@ func validateRecord(header []string, record csvRecord) error {
 	if len(record) > len(header) {
 		return fmt.Errorf("Record length is greater than header")
 	}
-	// not checking length because header may be bigger for new subjects
-	// if len(record) != len(header) {
-	// 	return fmt.Errorf("Record length must match header length")
-	// }
+	// not checking equal length because header may be bigger for new subjects
+
 	if _, err := time.Parse(DATE_FORMAT_CSV, record[0]); err != nil {
 		return fmt.Errorf("Invalid date format: %v", record[0])
 	}
 	for _, val := range record[1:] {
-		// TODO: fix hardcoded max status
 		if statusNum, err := strconv.Atoi(val); val != "" && (err != nil || statusNum > 2) {
 			return fmt.Errorf("Invalid status number: %v", statusNum)
 		}
@@ -82,6 +79,18 @@ func validateRecord(header []string, record csvRecord) error {
 }
 
 func validateRecords(records *csvRecords) error {
+	if len(*records) == 0 {
+		return fmt.Errorf("No records found")
+	}
+	header := (*records)[0]
+	if err := validateHeader(header); err != nil {
+		return fmt.Errorf("Invalid header: %w", err)
+	}
+	for _, record := range *records {
+		if err := validateRecord(header, record); err != nil {
+			return fmt.Errorf("Invalid record: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -146,17 +155,6 @@ func (cs *CSVStore) getHeaderFromCfg() csvRecord {
 	// slices.Sort(header)
 	header = append([]string{"Date"}, header...)
 	return header
-}
-
-func (cs *CSVStore) getHeaderFromCsv() (csvRecord, error) {
-	records, err := cs.GetAllRecords()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch records: %w", err)
-	}
-	if len(records) == 0 {
-		return nil, fmt.Errorf("No header found")
-	}
-	return records[0], nil
 }
 
 func (cs *CSVStore) GetAllRecords() (csvRecords, error) {
