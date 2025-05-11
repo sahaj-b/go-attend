@@ -86,7 +86,7 @@ func validateRecords(records *csvRecords) error {
 	if err := validateHeader(header); err != nil {
 		return fmt.Errorf("Invalid header: %w", err)
 	}
-	for _, record := range *records {
+	for _, record := range (*records)[1:] {
 		if err := validateRecord(header, record); err != nil {
 			return fmt.Errorf("Invalid record: %w", err)
 		}
