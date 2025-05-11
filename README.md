@@ -19,7 +19,7 @@
   - [x] handle duplicate subjects
   - [x] add tests for `ini_parser.go`
   - [x] save only if state is changed
-  - [ ] handle unscheduled_as_cancelled config
+  - [x] handle unscheduled_as_cancelled config
   - [ ] complete validations in `config.go`
   - [ ] add tests for `config.go`
   - [ ] make attendance view UI: subjectwise, weekdaywise, etc

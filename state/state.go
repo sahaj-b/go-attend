@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/sahaj-b/go-attend/config"
@@ -129,6 +130,7 @@ func HandleInput(s *State, input string, repo Repository) (confirm bool, quit bo
 
 func (s *State) loadItems(repo Repository) (err error) {
 	s.changed = true
+	unscheduledAsCancelled := config.GetCfg().UnscheduledAsCancelled
 	if newItems, found := s.CachedDates[s.Date]; found {
 		s.Items = newItems
 	} else {
@@ -136,24 +138,58 @@ func (s *State) loadItems(repo Repository) (err error) {
 		if err != nil {
 			return fmt.Errorf("Error getting items by date: %w", err)
 		}
+
+		allSubjectsSet := config.GetAllSubjectsSet()
+		allSubjects := make([]string, 0, len(allSubjectsSet))
+		// add to list and sort for persistent order
+		for subject := range allSubjectsSet {
+			allSubjects = append(allSubjects, subject)
+		}
+		slices.Sort(allSubjects)
+
 		if found {
 			s.Items = newItems
 			s.changed = false
+			for _, subject := range allSubjects {
+				found := false
+				for _, item := range s.Items {
+					if item.Name == subject {
+						found = true
+						break
+					}
+				}
+				if !found {
+					s.Items = append(s.Items, Item{
+						Name:     subject,
+						Selected: false,
+						Status:   Cancelled,
+					})
+				}
+			}
 		} else {
-			subjects, err := config.GetNewItems(s.Date.Format("Monday"))
+			scheduledSubjects, err := config.GetNewSubjects(s.Date.Format("Monday"))
 			if err != nil {
 				return fmt.Errorf("Error getting initial items: %w", err)
 			}
 			s.Items = []Item{}
-			if len(subjects) > 0 {
-				if !(len(subjects) == 1 && subjects[0] == "") {
-					s.Items = make([]Item, len(subjects))
-					for i, name := range subjects {
-						s.Items[i] = Item{
-							Name:     name,
+			if len(scheduledSubjects) > 0 {
+				s.Items = make([]Item, len(scheduledSubjects))
+				for i, name := range scheduledSubjects {
+					s.Items[i] = Item{
+						Name:     name,
+						Selected: false,
+						Status:   Absent,
+					}
+				}
+			}
+			if unscheduledAsCancelled {
+				for _, subject := range allSubjects {
+					if !slices.Contains(scheduledSubjects, subject) {
+						s.Items = append(s.Items, Item{
+							Name:     subject,
 							Selected: false,
-							Status:   Absent,
-						}
+							Status:   Cancelled,
+						})
 					}
 				}
 			}
