@@ -140,7 +140,7 @@ func getDataFilePath() (string, error) {
 
 func (cs *CSVStore) getHeaderFromCfg() csvRecord {
 	header := []string{}
-	for subject := range config.GetAllSubjects() {
+	for subject := range config.GetAllSubjectsSet() {
 		header = append(header, subject)
 	}
 	// slices.Sort(header)
@@ -270,7 +270,7 @@ func (cs *CSVStore) validateAndUpdateHeader(reader *csv.Reader) error {
 
 	// handling schedule change
 	newSubjects := []string{}
-	cfgSubjects := config.GetAllSubjects()
+	cfgSubjects := config.GetAllSubjectsSet()
 	for subject := range cfgSubjects {
 		if !slices.Contains(records[0], subject) {
 			newSubjects = append(newSubjects, subject)

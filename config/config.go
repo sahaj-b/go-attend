@@ -7,7 +7,7 @@ import (
 
 type subjectsSet map[string]struct{} // golang trick for making a set, struct{} takes 0 bytes
 
-func GetAllSubjects() subjectsSet {
+func GetAllSubjectsSet() subjectsSet {
 	cfg := GetCfg()
 	subjectsSet := subjectsSet{}
 	for _, daySubjects := range cfg.Schedule {
@@ -20,7 +20,7 @@ func GetAllSubjects() subjectsSet {
 	return subjectsSet
 }
 
-func GetNewItems(weekday string) ([]string, error) {
+func GetNewSubjects(weekday string) ([]string, error) {
 	cfg := GetCfg()
 	subjects, ok := cfg.Schedule[strings.ToLower(weekday)]
 	if !ok {
