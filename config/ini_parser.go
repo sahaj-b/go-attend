@@ -5,11 +5,9 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/sahaj-b/go-attend/utils"
@@ -17,18 +15,6 @@ import (
 
 //go:embed config_template.ini
 var configTemplateContent string
-
-type Config struct {
-	StartDate              time.Time
-	Schedule               map[string][]string
-	UnscheduledAsCancelled bool
-}
-
-var (
-	globalCfg Config
-	loadOnce  sync.Once
-	loadErr   error
-)
 
 const (
 	keyStartDate              = "start_date"
@@ -46,7 +32,7 @@ func getCfgFilePath() (string, error) {
 	return path, nil
 }
 
-func ensureConfig() error {
+func ensureConfigFileWithTemplate() error {
 	cfgFilePath, err := getCfgFilePath()
 	if err != nil {
 		return fmt.Errorf("Failed to get config file path: %w", err)
@@ -186,7 +172,7 @@ func loadAndParseConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	err = ensureConfig()
+	err = ensureConfigFileWithTemplate()
 	if err != nil {
 		return Config{}, err
 	}
@@ -202,16 +188,4 @@ func loadAndParseConfig() (Config, error) {
 		return Config{}, fmt.Errorf("INVALID CONFIG\n%w", err)
 	}
 	return parsedCfg, nil
-}
-
-func GetCfg() Config {
-	loadOnce.Do(func() {
-		cfg, err := loadAndParseConfig()
-		if err != nil {
-			loadErr = err
-			log.Fatalf("Failed to load config: %v", err)
-		}
-		globalCfg = cfg
-	})
-	return globalCfg
 }
