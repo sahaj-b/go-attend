@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -43,25 +44,90 @@ var hints = []Hint{
 
 func InitScreen() (restorer func(), err error) {
 	fmt.Print(hideCursor + saveCursorPos)
-	cmd := exec.Command("stty", "-F", "/dev/tty", "-g")
-	initStateBytes, err := cmd.Output()
-	initStateBytes = initStateBytes[:len(initStateBytes)-1]
 
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get terminal state")
-	}
+	var cmdGetState, cmdSetRaw *exec.Cmd
+	var sttyBaseArgs []string
 
-	err = exec.Command("stty", "-F", "/dev/tty", "raw", "-echo").Run()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to set terminal to raw mode")
-	}
-	return func() {
-		err := exec.Command("stty", "-F", "/dev/tty", string(initStateBytes)).Run()
+	switch runtime.GOOS {
+	case "linux":
+		sttyBaseArgs = []string{"stty", "-F", "/dev/tty"}
+		getArg := append(sttyBaseArgs, "-g")
+		cmdGetState = exec.Command(getArg[0], getArg[1:]...)
+		rawArg := append(sttyBaseArgs, "raw", "-echo")
+		cmdSetRaw = exec.Command(rawArg[0], rawArg[1:]...)
+	case "darwin":
+		cmdGetState = exec.Command("sh", "-c", "stty -g < /dev/tty")
+		cmdSetRaw = exec.Command("sh", "-c", "stty raw -echo < /dev/tty")
+	default:
 		fmt.Print(showCursor)
-		if err != nil {
-			fmt.Println("Failed to reset terminal state:", err)
+		return nil, fmt.Errorf("Unsupported OS: %s. This code's too good for it", runtime.GOOS)
+	}
+
+	initStateBytes, err := cmdGetState.Output()
+	if err != nil {
+		fmt.Print(showCursor)
+		return nil, fmt.Errorf("Failed to get terminal state (cmd: '%s'): %v. Output: '%s'", strings.Join(cmdGetState.Args, " "), err, string(initStateBytes))
+	}
+
+	initStateStr := strings.TrimSpace(string(initStateBytes))
+
+	if err = cmdSetRaw.Run(); err != nil {
+		fmt.Print(showCursor)
+		restoreArgs := sttyBaseArgs
+		if initStateStr != "" {
+			settings := strings.Fields(initStateStr)
+			if len(settings) > 0 {
+				restoreArgs = append(restoreArgs, settings...)
+			} else {
+				restoreArgs = append(restoreArgs, "sane")
+			}
+		} else {
+			restoreArgs = append(restoreArgs, "sane")
 		}
-	}, nil
+		if len(restoreArgs) > len(sttyBaseArgs) {
+			exec.Command(restoreArgs[0], restoreArgs[1:]...).Run()
+		} else {
+			saneFallbackArgs := append(sttyBaseArgs, "sane")
+			exec.Command(saneFallbackArgs[0], saneFallbackArgs[1:]...).Run()
+		}
+		return nil, fmt.Errorf("Failed to set terminal to raw mode (cmd: '%s'): %v", strings.Join(cmdSetRaw.Args, " "), err)
+	}
+
+	restorer = func() {
+		settings := strings.Fields(initStateStr)
+		var cmdRestore *exec.Cmd
+
+		switch runtime.GOOS {
+		case "darwin":
+			restoreCmdStr := "stty "
+			if len(settings) > 0 {
+				restoreCmdStr += strings.Join(settings, " ")
+			} else {
+				restoreCmdStr += "sane"
+			}
+			restoreCmdStr += " < /dev/tty"
+			cmdRestore = exec.Command("sh", "-c", restoreCmdStr)
+		case "linux":
+			restoreCmdArgs := sttyBaseArgs
+			if len(settings) > 0 {
+				restoreCmdArgs = append(restoreCmdArgs, settings...)
+			} else {
+				restoreCmdArgs = append(restoreCmdArgs, "sane")
+			}
+			cmdRestore = exec.Command(restoreCmdArgs[0], restoreCmdArgs[1:]...)
+		default:
+			fmt.Print(showCursor)
+			fmt.Fprintf(os.Stderr, "Unsupported OS: Cannot determine how to restore terminal state.\n")
+			return
+		}
+
+		errRestore := cmdRestore.Run()
+		fmt.Print(showCursor)
+		if errRestore != nil {
+			fmt.Fprintf(os.Stderr, "CRITICAL: Failed to reset terminal state (cmd: '%s'): %v. Good luck\n", strings.Join(cmdRestore.Args, " "), errRestore)
+		}
+	}
+	return restorer, nil
 }
 
 func hintComponent(hints []Hint) string {
