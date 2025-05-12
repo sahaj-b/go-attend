@@ -8,7 +8,7 @@ import (
 )
 
 type StatsDataProvider interface {
-	GetAttendanceItemsInRange(time.Time, time.Time) ([]core.AttendanceItem, error)
+	GetItemsInRange(time.Time, time.Time) ([]core.AttendanceItem, error)
 }
 
 type Stat struct {
@@ -23,7 +23,7 @@ type (
 
 func GetSubjectWiseStats(dp StatsDataProvider, startDate time.Time, endDate time.Time) (subjectStatsMap, int, int, error) {
 	attended, total := 0, 0
-	items, err := dp.GetAttendanceItemsInRange(startDate, endDate)
+	items, err := dp.GetItemsInRange(startDate, endDate)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("Failed to get attendance items: %w", err)
 	}
@@ -46,7 +46,7 @@ func GetSubjectWiseStats(dp StatsDataProvider, startDate time.Time, endDate time
 
 func GetWeekdayWiseStats(dp StatsDataProvider, startDate time.Time, endDate time.Time) (weekdayStatsMap, int, int, error) {
 	attended, total := 0, 0
-	items, err := dp.GetAttendanceItemsInRange(startDate, endDate)
+	items, err := dp.GetItemsInRange(startDate, endDate)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("Failed to get attendance items: %w", err)
 	}

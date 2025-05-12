@@ -11,6 +11,7 @@ const (
 	Gray       = "\x1b[38;5;247m"
 	Yellow     = "\x1b[33m"
 	Bggray     = "\x1b[48;5;236m"
+	MoreGray   = "\x1b[38;5;241m"
 	Strike     = "\x1b[9m"
 	Disabled   = "\x1b[38;5;240m"
 )

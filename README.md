@@ -22,7 +22,7 @@
   - [x] handle unscheduled_as_cancelled config
   - [x] make `stats.go` for attendance stats
   - [x] make `stats_view.go` for stats display
-  - [ ] handle arguments: start/end, date, remove record, rename subject etc
+  - [x] handle arguments: start/end, date, remove record, rename subject etc
   - [ ] add tests for attendance view UI?
   - [ ] support windows using `term` package?
   - [ ] CI/CD: github actions, releases

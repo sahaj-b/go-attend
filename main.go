@@ -1,7 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/sahaj-b/go-attend/config"
 	"github.com/sahaj-b/go-attend/state"
@@ -9,7 +12,39 @@ import (
 	"github.com/sahaj-b/go-attend/ui"
 )
 
+const (
+	DATE_FORMAT_ARG      = "02-01-2006"
+	DATE_FORMAT_ARG_SHOW = "DD-MM-YYYY"
+)
+
 func main() {
+	args := os.Args
+	date := state.CURR_DAY
+	if len(args) > 1 {
+		switch args[1] {
+		case "stats":
+			handleStatsArgs(args)
+			return
+		case "help", "-h", "--help":
+			printHelp()
+			return
+		case "config-file":
+			path, err := config.GetCfgFilePath()
+			if err != nil {
+				ui.Error("Error getting config file path: " + err.Error())
+			}
+			fmt.Println("Config file path:", path)
+			return
+		default:
+			argDate, err := time.Parse(DATE_FORMAT_ARG, args[1])
+			if err != nil {
+				ui.Error("Invalid argument: " + args[1])
+				printHelp()
+				return
+			}
+			date = argDate
+		}
+	}
 	config.GetCfg()
 	restorer, err := ui.InitScreen()
 	if err != nil {
@@ -22,7 +57,7 @@ func main() {
 		ui.Error("Error creating CSV store:" + err.Error())
 		return
 	}
-	currState, err := state.GetInitialState(csvStore)
+	currState, err := state.GetInitialState(csvStore, date)
 	if err != nil {
 		ui.Error("Error getting initial state:" + err.Error())
 		return
@@ -49,4 +84,65 @@ func main() {
 		ui.Error("Cancelled")
 	}
 	fmt.Println()
+}
+
+func printHelp() {
+	fmt.Println("Usage: go-attend [date|options]")
+	fmt.Println("Date format: " + DATE_FORMAT_ARG_SHOW)
+	fmt.Println("Options:")
+	fmt.Println("  stats                 Show stats")
+	fmt.Println("  stats -h              Show stats usage and flags")
+	fmt.Println("  config-file           Show config file path")
+	fmt.Println("  h, -help            Show this help message")
+	fmt.Println()
+}
+
+func handleStatsArgs(args []string) {
+	cfg := config.GetCfg()
+	weekday := false
+	startDate := cfg.StartDate
+	endDate := time.Time{}
+	if len(args) > 2 {
+		statsCmd := flag.NewFlagSet("stats", flag.ExitOnError)
+		statsCmd.BoolVar(&weekday, "weekday", false, "Show weekday wise stats")
+		startDateStr := statsCmd.String("start", "", "Start date for the stats (format: "+DATE_FORMAT_ARG_SHOW+")")
+		endDateStr := statsCmd.String("end", "", "End date for the stats (format: "+DATE_FORMAT_ARG_SHOW+")")
+		statsCmd.Usage = func() {
+			fmt.Println("Usage: go-attend stats [flags]")
+			fmt.Println("Flags:")
+			statsCmd.PrintDefaults()
+		}
+		err := statsCmd.Parse(args[2:])
+		if err != nil {
+			return
+		}
+		if *startDateStr != "" {
+			argStartDate, err := time.Parse(DATE_FORMAT_ARG, *startDateStr)
+			if err != nil {
+				ui.Error("Invalid start date: " + *startDateStr)
+				fmt.Println("Format must be: " + DATE_FORMAT_ARG_SHOW)
+				return
+			}
+			startDate = argStartDate
+		}
+		if *endDateStr != "" {
+			argEndDate, err := time.Parse(DATE_FORMAT_ARG, *endDateStr)
+			if err != nil {
+				ui.Error("Invalid end date: " + *endDateStr)
+				fmt.Println("Format must be: " + DATE_FORMAT_ARG_SHOW)
+				return
+			}
+			endDate = argEndDate
+		}
+	}
+	csvStore, err := store.NewCSVStore()
+	if err != nil {
+		ui.Error("Error creating CSV store:" + err.Error())
+		return
+	}
+	if weekday {
+		ui.DisplayWeekdayWiseStats(csvStore, startDate, endDate)
+	} else {
+		ui.DisplaySubjectWiseStats(csvStore, startDate, endDate)
+	}
 }

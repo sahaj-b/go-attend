@@ -44,10 +44,14 @@ type State struct {
 	LastRenderedLines int
 }
 
-func GetInitialState(dp StateDataProvider) (*State, error) {
+func GetInitialState(dp StateDataProvider, date time.Time) (*State, error) {
+	atMaxDate := false
+	if date.Equal(CURR_DAY) {
+		atMaxDate = true
+	}
 	state := &State{
-		Date:              CURR_DAY,
-		AtMaxDate:         true,
+		Date:              date,
+		AtMaxDate:         atMaxDate,
 		CachedDates:       make(ItemsMap),
 		Cursor:            0,
 		changed:           false,

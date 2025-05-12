@@ -23,7 +23,7 @@ const (
 	sectionGeneral            = "general"
 )
 
-func getCfgFilePath() (string, error) {
+func GetCfgFilePath() (string, error) {
 	cfgDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("Failed to get user config dir: %w", err)
@@ -33,7 +33,7 @@ func getCfgFilePath() (string, error) {
 }
 
 func ensureConfigFileWithTemplate() error {
-	cfgFilePath, err := getCfgFilePath()
+	cfgFilePath, err := GetCfgFilePath()
 	if err != nil {
 		return fmt.Errorf("Failed to get config file path: %w", err)
 	}
@@ -167,7 +167,7 @@ func parseIni(reader io.Reader) (Config, error) {
 }
 
 func loadAndParseConfig() (Config, error) {
-	cfgFilePath, err := getCfgFilePath()
+	cfgFilePath, err := GetCfgFilePath()
 	if err != nil {
 		return Config{}, err
 	}

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -16,29 +17,49 @@ const (
 
 func barComponent(coloredLength, maxBarLength int) string {
 	grayBarLength := maxBarLength - coloredLength
-	// output.WriteString(Bggray + Cyan + strings.Repeat(bar, coloredBarLength) + strings.Repeat(" ", grayBarLength) + ResetStyle + "\n")
-	// output.WriteString(Bggray + Cyan + strings.Repeat(bar, coloredBarLength) + Gray + strings.Repeat(bar, grayBarLength) + ResetStyle + "\n")
-	return Cyan + strings.Repeat(bar, coloredLength) + Gray + strings.Repeat(bar, grayBarLength) + ResetStyle + "\n"
+	// return Bggray + Cyan + strings.Repeat(bar, coloredLength) + strings.Repeat(" ", grayBarLength) + ResetStyle + "\n"
+	// return Bggray + Cyan + strings.Repeat(bar, coloredLength) + Gray + strings.Repeat(bar, grayBarLength) + ResetStyle + "\n"
+	return Cyan + strings.Repeat(bar, coloredLength) + MoreGray + strings.Repeat(bar, grayBarLength) + ResetStyle + "\n"
 }
 
 func overallAttendanceComponent(attended, total int) string {
 	percentage := float32(attended) / float32(total) * 100
-	return Bggray + Yellow + Bold + "Overall Attendance: " + ResetStyle +
-		Bggray + Yellow + strconv.Itoa(attended) + "/" + strconv.Itoa(total) + " Classes attended" + ResetStyle + "\n" +
-		Yellow + Bold + fmt.Sprintf("Attendance Percentage: %.1f%%\n", percentage) + ResetStyle +
+	return headerComponent("Overall Attendance") +
+		Yellow + "Percentage: " + ResetStyle + Cyan + Bold + Bggray + fmt.Sprintf(" %.1f%% ", percentage) + ResetStyle + "\n" +
+		Yellow + "Classes attended " + ResetStyle + Cyan + Bold + Bggray + fmt.Sprintf(" %d/%d ", attended, total) + ResetStyle + "\n" +
 		barComponent(int(percentage*maxBarLength/100), maxBarLength)
 }
 
-func barMapComponent(imap map[string]stats.Stat) string {
+func barMapComponent(imap map[string]stats.Stat, weekday bool) string {
+	keys := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+	if !weekday {
+		keys = make([]string, 0, len(imap))
+		for k := range imap {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+	}
+
 	output := strings.Builder{}
-	for subject, stats := range imap {
-		subjectPercentage := float32(stats.Attended) / float32(stats.Total) * 100
-		output.WriteString(Bggray + Yellow + Bold + subject + ResetStyle + "\n")
-		output.WriteString(Bggray + Yellow + strconv.Itoa(stats.Attended) + "/" + strconv.Itoa(stats.Total) + " Classes attended" + ResetStyle + "\n")
-		output.WriteString(Yellow + Bold + fmt.Sprintf("Attendance Percentage: %.1f%%\n", subjectPercentage) + ResetStyle)
-		output.WriteString(barComponent(int(subjectPercentage*maxBarLength/100), maxBarLength))
+	for _, key := range keys {
+		stat, exists := imap[key]
+		if !exists {
+			continue
+		}
+		subjectPercentage := float32(0)
+		if stat.Total > 0 {
+			subjectPercentage = float32(stat.Attended) / float32(stat.Total) * 100
+		}
+		output.WriteString(Bggray + Yellow + Bold + " " + key + " " + ResetStyle +
+			Cyan + Bold + fmt.Sprintf(" %.1f%%\n", subjectPercentage) + ResetStyle +
+			Yellow + " " + strconv.Itoa(stat.Attended) + "/" + strconv.Itoa(stat.Total) + " " + ResetStyle +
+			barComponent(int(subjectPercentage*maxBarLength/100), maxBarLength) + "\n")
 	}
 	return output.String()
+}
+
+func headerComponent(header string) string {
+	return Bggray + Yellow + Bold + " " + header + " " + ResetStyle + "\n\n"
 }
 
 func DisplaySubjectWiseStats(dp stats.StatsDataProvider, startDate, endDate time.Time) {
@@ -52,9 +73,10 @@ func DisplaySubjectWiseStats(dp stats.StatsDataProvider, startDate, endDate time
 		Warn("No attendance records found")
 		return
 	}
+	output.WriteString("\n")
+	output.WriteString(headerComponent("Subject Wise Attendance"))
+	output.WriteString(barMapComponent(subjectsMap, false) + "\n")
 	output.WriteString(overallAttendanceComponent(attended, total))
-	output.WriteString(Bggray + Yellow + Bold + "Subject Wise Stats" + ResetStyle)
-	output.WriteString(barMapComponent(subjectsMap))
 	fmt.Println(output.String())
 }
 
@@ -70,8 +92,10 @@ func DisplayWeekdayWiseStats(dp stats.StatsDataProvider, startDate, endDate time
 		return
 	}
 
+	output.WriteString("\n")
+	output.WriteString(headerComponent("Weekday Wise Attendance"))
+	output.WriteString(barMapComponent(weekdaysMap, true))
+	output.WriteString("\n")
 	output.WriteString(overallAttendanceComponent(attended, total))
-	output.WriteString(Bggray + Yellow + Bold + "Weekday Wise Stats" + ResetStyle)
-	output.WriteString(barMapComponent(weekdaysMap))
 	fmt.Println(output.String())
 }
