@@ -20,7 +20,7 @@ const (
 	kpEnterKey    = "\x1bOM"
 )
 
-type Repository interface {
+type StateDataProvider interface {
 	GetItemsByDate(date time.Time) ([]Item, bool, error)
 	SaveState(s *State) error
 }
@@ -51,7 +51,7 @@ type State struct {
 	LastRenderedLines int
 }
 
-func GetInitialState(repo Repository) (*State, error) {
+func GetInitialState(repo StateDataProvider) (*State, error) {
 	state := &State{
 		Date:              CURR_DAY,
 		AtMaxDate:         true,
@@ -101,7 +101,7 @@ func (s *State) moveCursor(direction string) {
 	}
 }
 
-func HandleInput(s *State, input string, repo Repository) (confirm bool, quit bool) {
+func HandleInput(s *State, input string, repo StateDataProvider) (confirm bool, quit bool) {
 	confirm, quit = false, false
 	switch input {
 	case upArrowKey, "k":
@@ -128,7 +128,7 @@ func HandleInput(s *State, input string, repo Repository) (confirm bool, quit bo
 	return confirm, quit
 }
 
-func (s *State) loadItems(repo Repository) (err error) {
+func (s *State) loadItems(repo StateDataProvider) (err error) {
 	s.changed = true
 	unscheduledAsCancelled := config.GetCfg().UnscheduledAsCancelled
 	if newItems, found := s.CachedDates[s.Date]; found {
@@ -202,7 +202,7 @@ func (s *State) loadItems(repo Repository) (err error) {
 	return nil
 }
 
-func (s *State) stepDay(direction string, repo Repository) error {
+func (s *State) stepDay(direction string, repo StateDataProvider) error {
 	if !s.AtMaxDate {
 		if s.changed {
 			s.CachedDates[s.Date] = s.Items
