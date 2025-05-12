@@ -20,7 +20,7 @@
   - [x] add tests for `ini_parser.go`
   - [x] save only if state is changed
   - [x] handle unscheduled_as_cancelled config
-  - [ ] make `stats.go` for attendance stats
+  - [x] make `stats.go` for attendance stats
   - [ ] make `stats_view.go` for stats display
   - [ ] handle arguments: start/end, date, remove record, rename subject etc
   - [ ] add tests for attendance view UI?
