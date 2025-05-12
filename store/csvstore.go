@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sahaj-b/go-attend/config"
+	"github.com/sahaj-b/go-attend/core"
 	"github.com/sahaj-b/go-attend/state"
 	"github.com/sahaj-b/go-attend/utils"
 )
@@ -94,7 +95,7 @@ func validateRecords(records *csvRecords) error {
 	return nil
 }
 
-func itemsToRecordStr(header csvRecord, dateStr string, items []state.Item) (csvRecord, error) {
+func stateItemsToRecordStr(header csvRecord, dateStr string, items []state.Item) (csvRecord, error) {
 	err := validateHeader(header)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid header: %w", err)
@@ -157,7 +158,7 @@ func (cs *CSVStore) getHeaderFromCfg() csvRecord {
 	return header
 }
 
-func (cs *CSVStore) GetAllRecords() (csvRecords, error) {
+func (cs *CSVStore) getAllRecords() (csvRecords, error) {
 	if cs.cacheValid {
 		return cs.cachedRecords, nil
 	}
@@ -183,14 +184,14 @@ func (cs *CSVStore) GetAllRecords() (csvRecords, error) {
 	return records, nil
 }
 
-func recordStrToItems(header []string, record csvRecord) ([]state.Item, error) {
+func recordStrToItems(header []string, record csvRecord) ([]core.AttendanceItem, error) {
 	if err := validateHeader(header); err != nil {
 		return nil, fmt.Errorf("Invalid header: %w", err)
 	}
 	if err := validateRecord(header, record); err != nil {
 		return nil, fmt.Errorf("Invalid record: %w", err)
 	}
-	items := []state.Item{}
+	items := []core.AttendanceItem{}
 	for i, subject := range header[1:] {
 		if i+1 >= len(record) {
 			// record is shorter than header. this means header is updated with new subjects for future records
@@ -206,18 +207,35 @@ func recordStrToItems(header []string, record csvRecord) ([]state.Item, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Invalid status number: %v", record[i+1])
 		}
-		items = append(items, state.Item{
-			Name:     subject,
-			Selected: false,
-			Status:   state.ItemStatus(status),
+		date, _ := time.Parse(DATE_FORMAT_CSV, record[0]) // validateRecord already checks this
+		items = append(items, core.AttendanceItem{
+			Subject: subject,
+			Status:  core.AttendanceStatus(status),
+			Date:    date,
 		})
 	}
 
 	return items, nil
 }
 
-func (cs *CSVStore) GetItemsByDate(date time.Time) ([]state.Item, bool, error) {
-	records, err := cs.GetAllRecords()
+func recordStrToStateItems(header []string, record csvRecord) ([]state.Item, error) {
+	attendanceItems, err := recordStrToItems(header, record)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to convert record to items: %w", err)
+	}
+	items := make([]state.Item, len(attendanceItems))
+	for i, item := range attendanceItems {
+		items[i] = state.Item{
+			Name:     item.Subject,
+			Selected: false,
+			Status:   item.Status,
+		}
+	}
+	return items, nil
+}
+
+func (cs *CSVStore) GetStateItemsByDate(date time.Time) ([]state.Item, bool, error) {
+	records, err := cs.getAllRecords()
 	if err != nil {
 		return nil, false, fmt.Errorf("Failed to fetch records: %w", err)
 	}
@@ -225,7 +243,7 @@ func (cs *CSVStore) GetItemsByDate(date time.Time) ([]state.Item, bool, error) {
 	dateStr := date.Format(DATE_FORMAT_CSV)
 	for _, record := range records {
 		if record[0] == dateStr {
-			items, err := recordStrToItems(records[0], record)
+			items, err := recordStrToStateItems(records[0], record)
 			if err != nil {
 				return nil, false, fmt.Errorf("Couldn't convert record to Items: %w", err)
 			}
@@ -298,7 +316,7 @@ func (cs *CSVStore) validateAndUpdateHeader(reader *csv.Reader) error {
 }
 
 func (cs *CSVStore) saveRecords(imap *state.ItemsMap) error {
-	allRecords, err := cs.GetAllRecords()
+	allRecords, err := cs.getAllRecords()
 	if err != nil {
 		return fmt.Errorf("Failed to fetch records: %w", err)
 	}
@@ -313,7 +331,7 @@ func (cs *CSVStore) saveRecords(imap *state.ItemsMap) error {
 
 	for date, items := range *imap {
 		formattedDate := date.Format(DATE_FORMAT_CSV)
-		newRecord, err := itemsToRecordStr(header, formattedDate, items)
+		newRecord, err := stateItemsToRecordStr(header, formattedDate, items)
 		if err != nil {
 			return fmt.Errorf("Failed to convert items to record: %w", err)
 		}
@@ -345,4 +363,32 @@ func (cs *CSVStore) SaveState(s *state.State) error {
 		return err
 	}
 	return nil
+}
+
+func (cs *CSVStore) GetItemsInRange(starDate time.Time, endDate time.Time) ([]core.AttendanceItem, error) {
+	allRecords, err := cs.getAllRecords()
+	if err != nil {
+		return nil, err
+	}
+	finalItems := make([]core.AttendanceItem, 0)
+	for _, record := range allRecords[1:] {
+		// no error check coz GetAllRecords has validations already
+		date, _ := time.Parse(DATE_FORMAT_CSV, record[0])
+		if !starDate.IsZero() && date.Before(starDate) {
+			continue
+		}
+		if !endDate.IsZero() && date.After(endDate) {
+			continue
+		}
+
+		items, err := recordStrToItems(allRecords[0], record)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to convert record to items: %w", err)
+		}
+
+		for _, item := range items {
+			finalItems = append(finalItems, item)
+		}
+	}
+	return finalItems, nil
 }

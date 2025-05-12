@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/sahaj-b/go-attend/core"
 	"github.com/sahaj-b/go-attend/state"
 )
 
@@ -64,11 +65,11 @@ func TestItemsToRecord(t *testing.T) {
 			Name: "all subjects",
 			date: "10-01-2023",
 			items: []state.Item{
-				{Name: "English", Selected: false, Status: state.Present},
-				{Name: "Math", Selected: false, Status: state.Absent},
-				{Name: "Science", Selected: false, Status: state.Present},
-				{Name: "History", Selected: false, Status: state.Absent},
-				{Name: "Geography", Selected: false, Status: state.Present},
+				{Name: "English", Selected: false, Status: core.Present},
+				{Name: "Math", Selected: false, Status: core.Absent},
+				{Name: "Science", Selected: false, Status: core.Present},
+				{Name: "History", Selected: false, Status: core.Absent},
+				{Name: "Geography", Selected: false, Status: core.Present},
 			},
 			record: csvRecord{"10-01-2023", "0", "1", "0", "1", "0"},
 			isErr:  false,
@@ -77,9 +78,9 @@ func TestItemsToRecord(t *testing.T) {
 			Name: "missing subjects",
 			date: "10-02-2023",
 			items: []state.Item{
-				{Name: "Math", Selected: false, Status: state.Present},
-				{Name: "History", Selected: false, Status: state.Absent},
-				{Name: "English", Selected: false, Status: state.Present},
+				{Name: "Math", Selected: false, Status: core.Present},
+				{Name: "History", Selected: false, Status: core.Absent},
+				{Name: "English", Selected: false, Status: core.Present},
 			},
 			record: csvRecord{"10-02-2023", "0", "0", "", "1", ""},
 			isErr:  false,
@@ -88,11 +89,11 @@ func TestItemsToRecord(t *testing.T) {
 			Name: "unordered subjects",
 			date: "01-03-2025",
 			items: []state.Item{
-				{Name: "Math", Selected: false, Status: state.Absent},
-				{Name: "Geography", Selected: false, Status: state.Present},
-				{Name: "Science", Selected: false, Status: state.Present},
-				{Name: "English", Selected: false, Status: state.Present},
-				{Name: "History", Selected: false, Status: state.Absent},
+				{Name: "Math", Selected: false, Status: core.Absent},
+				{Name: "Geography", Selected: false, Status: core.Present},
+				{Name: "Science", Selected: false, Status: core.Present},
+				{Name: "English", Selected: false, Status: core.Present},
+				{Name: "History", Selected: false, Status: core.Absent},
 			},
 			record: csvRecord{"01-03-2025", "0", "1", "0", "1", "0"},
 			isErr:  false,
@@ -101,11 +102,11 @@ func TestItemsToRecord(t *testing.T) {
 			Name: "invalid Status",
 			date: "01-04-2025",
 			items: []state.Item{
-				{Name: "English", Selected: false, Status: state.ItemStatus(10)},
-				{Name: "Math", Selected: false, Status: state.Absent},
-				{Name: "Science", Selected: false, Status: state.Present},
-				{Name: "History", Selected: false, Status: state.Absent},
-				{Name: "Geography", Selected: false, Status: state.Present},
+				{Name: "English", Selected: false, Status: core.AttendanceStatus(10)},
+				{Name: "Math", Selected: false, Status: core.Absent},
+				{Name: "Science", Selected: false, Status: core.Present},
+				{Name: "History", Selected: false, Status: core.Absent},
+				{Name: "Geography", Selected: false, Status: core.Present},
 			},
 			record: nil,
 			isErr:  true,
@@ -114,7 +115,7 @@ func TestItemsToRecord(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.Name, func(t *testing.T) {
-			record, err := itemsToRecordStr(headers, test.date, test.items)
+			record, err := stateItemsToRecordStr(headers, test.date, test.items)
 			if test.isErr && err == nil {
 				t.Errorf("Expected error for %s, got nil", test.Name)
 			} else if !test.isErr && err != nil {
@@ -126,7 +127,7 @@ func TestItemsToRecord(t *testing.T) {
 	}
 }
 
-func TestRecordToItems(t *testing.T) {
+func TestRecordToStateItems(t *testing.T) {
 	tests := []struct {
 		Name    string
 		headers []string
@@ -139,9 +140,9 @@ func TestRecordToItems(t *testing.T) {
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  csvRecord{"10-01-2023", "0", "1", "2"},
 			items: []state.Item{
-				{Name: "Math", Selected: false, Status: state.Present},
-				{Name: "English", Selected: false, Status: state.Absent},
-				{Name: "History", Selected: false, Status: state.Cancelled},
+				{Name: "Math", Selected: false, Status: core.Present},
+				{Name: "English", Selected: false, Status: core.Absent},
+				{Name: "History", Selected: false, Status: core.Cancelled},
 			},
 			isErr: false,
 		},
@@ -150,9 +151,9 @@ func TestRecordToItems(t *testing.T) {
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  csvRecord{"10-02-2023", "0", "0", "0"},
 			items: []state.Item{
-				{Name: "Math", Selected: false, Status: state.Present},
-				{Name: "English", Selected: false, Status: state.Present},
-				{Name: "History", Selected: false, Status: state.Present},
+				{Name: "Math", Selected: false, Status: core.Present},
+				{Name: "English", Selected: false, Status: core.Present},
+				{Name: "History", Selected: false, Status: core.Present},
 			},
 			isErr: false,
 		},
@@ -161,8 +162,8 @@ func TestRecordToItems(t *testing.T) {
 			headers: []string{"Date", "Math", "English", "History"},
 			record:  csvRecord{"10-04-2023", "0", "1"},
 			items: []state.Item{
-				{Name: "Math", Selected: false, Status: state.Present},
-				{Name: "English", Selected: false, Status: state.Absent},
+				{Name: "Math", Selected: false, Status: core.Present},
+				{Name: "English", Selected: false, Status: core.Absent},
 			},
 			isErr: false,
 		},
@@ -197,7 +198,7 @@ func TestRecordToItems(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			items, err := recordStrToItems(test.headers, test.record)
+			items, err := recordStrToStateItems(test.headers, test.record)
 			if test.isErr && err == nil {
 				t.Errorf("%v: Expected error for record %v, got nil", test.Name, test.record)
 			} else if !test.isErr && err != nil {

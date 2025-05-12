@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sahaj-b/go-attend/core"
 	"github.com/sahaj-b/go-attend/state"
 )
 
@@ -94,13 +95,13 @@ func getStyleAndBullet(item state.Item) (string, string) {
 	itemStyle := ""
 	itemBullet := ""
 	switch item.Status {
-	case state.Present:
+	case core.Present:
 		itemStyle = Green
 		itemBullet = "●"
-	case state.Absent:
+	case core.Absent:
 		itemStyle = ""
 		itemBullet = "○"
-	case state.Cancelled:
+	case core.Cancelled:
 		itemStyle = Gray + Strike
 		itemBullet = "✗"
 	}

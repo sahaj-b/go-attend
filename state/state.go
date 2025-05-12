@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sahaj-b/go-attend/config"
+	"github.com/sahaj-b/go-attend/core"
 )
 
 var CURR_DAY = time.Now().Truncate(time.Hour * 24)
@@ -21,22 +22,14 @@ const (
 )
 
 type StateDataProvider interface {
-	GetItemsByDate(date time.Time) ([]Item, bool, error)
+	GetStateItemsByDate(date time.Time) ([]Item, bool, error)
 	SaveState(s *State) error
 }
 
-type ItemStatus int
-
-const (
-	Present ItemStatus = iota
-	Absent
-	Cancelled
-)
-
 type Item struct {
 	Name     string
+	Status   core.AttendanceStatus
 	Selected bool
-	Status   ItemStatus
 }
 
 type ItemsMap map[time.Time][]Item
@@ -51,7 +44,7 @@ type State struct {
 	LastRenderedLines int
 }
 
-func GetInitialState(repo StateDataProvider) (*State, error) {
+func GetInitialState(dp StateDataProvider) (*State, error) {
 	state := &State{
 		Date:              CURR_DAY,
 		AtMaxDate:         true,
@@ -60,7 +53,7 @@ func GetInitialState(repo StateDataProvider) (*State, error) {
 		changed:           false,
 		LastRenderedLines: -1, // to prevent clearing cli command
 	}
-	err := state.loadItems(repo)
+	err := state.loadItems(dp)
 	if err != nil {
 		return nil, err
 	}
@@ -69,22 +62,22 @@ func GetInitialState(repo StateDataProvider) (*State, error) {
 
 func (s *State) toggleCancel() {
 	s.changed = true
-	if s.Items[s.Cursor].Status == Cancelled {
-		s.Items[s.Cursor].Status = Absent
+	if s.Items[s.Cursor].Status == core.Cancelled {
+		s.Items[s.Cursor].Status = core.Absent
 	} else {
-		s.Items[s.Cursor].Status = Cancelled
+		s.Items[s.Cursor].Status = core.Cancelled
 	}
 }
 
 func (s *State) toggleItem() {
 	s.changed = true
 	switch s.Items[s.Cursor].Status {
-	case Present:
-		s.Items[s.Cursor].Status = Absent
-	case Absent:
-		s.Items[s.Cursor].Status = Present
-	case Cancelled:
-		s.Items[s.Cursor].Status = Present
+	case core.Present:
+		s.Items[s.Cursor].Status = core.Absent
+	case core.Absent:
+		s.Items[s.Cursor].Status = core.Present
+	case core.Cancelled:
+		s.Items[s.Cursor].Status = core.Present
 	}
 }
 
@@ -101,7 +94,7 @@ func (s *State) moveCursor(direction string) {
 	}
 }
 
-func HandleInput(s *State, input string, repo StateDataProvider) (confirm bool, quit bool) {
+func HandleInput(s *State, input string, dp StateDataProvider) (confirm bool, quit bool) {
 	confirm, quit = false, false
 	switch input {
 	case upArrowKey, "k":
@@ -109,11 +102,11 @@ func HandleInput(s *State, input string, repo StateDataProvider) (confirm bool, 
 	case downArrowKey, "j":
 		s.moveCursor("down")
 	case leftArrowKey, "h":
-		if err := s.stepDay("prev", repo); err != nil {
+		if err := s.stepDay("prev", dp); err != nil {
 			return false, true
 		}
 	case rightArrowKey, "l":
-		if err := s.stepDay("next", repo); err != nil {
+		if err := s.stepDay("next", dp); err != nil {
 			return false, true
 		}
 	case " ":
@@ -128,13 +121,13 @@ func HandleInput(s *State, input string, repo StateDataProvider) (confirm bool, 
 	return confirm, quit
 }
 
-func (s *State) loadItems(repo StateDataProvider) (err error) {
+func (s *State) loadItems(dp StateDataProvider) (err error) {
 	s.changed = true
 	unscheduledAsCancelled := config.GetCfg().UnscheduledAsCancelled
 	if newItems, found := s.CachedDates[s.Date]; found {
 		s.Items = newItems
 	} else {
-		newItems, found, err := repo.GetItemsByDate(s.Date)
+		newItems, found, err := dp.GetStateItemsByDate(s.Date)
 		if err != nil {
 			return fmt.Errorf("Error getting items by date: %w", err)
 		}
@@ -162,7 +155,7 @@ func (s *State) loadItems(repo StateDataProvider) (err error) {
 					s.Items = append(s.Items, Item{
 						Name:     subject,
 						Selected: false,
-						Status:   Cancelled,
+						Status:   core.Cancelled,
 					})
 				}
 			}
@@ -178,7 +171,7 @@ func (s *State) loadItems(repo StateDataProvider) (err error) {
 					s.Items[i] = Item{
 						Name:     name,
 						Selected: false,
-						Status:   Absent,
+						Status:   core.Absent,
 					}
 				}
 			}
@@ -188,7 +181,7 @@ func (s *State) loadItems(repo StateDataProvider) (err error) {
 						s.Items = append(s.Items, Item{
 							Name:     subject,
 							Selected: false,
-							Status:   Cancelled,
+							Status:   core.Cancelled,
 						})
 					}
 				}
@@ -202,7 +195,7 @@ func (s *State) loadItems(repo StateDataProvider) (err error) {
 	return nil
 }
 
-func (s *State) stepDay(direction string, repo StateDataProvider) error {
+func (s *State) stepDay(direction string, dp StateDataProvider) error {
 	if !s.AtMaxDate {
 		if s.changed {
 			s.CachedDates[s.Date] = s.Items
@@ -225,7 +218,7 @@ func (s *State) stepDay(direction string, repo StateDataProvider) error {
 		s.AtMaxDate = false
 	}
 
-	err := s.loadItems(repo)
+	err := s.loadItems(dp)
 	if err != nil {
 		return fmt.Errorf("Error loading new items: %w", err)
 	}
