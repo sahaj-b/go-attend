@@ -1,7 +1,9 @@
-# Go-Attend: Attendance Tracker TUI
+<H1 align="center"> Go-Attend: Attendance Tracker TUI </H1>
 
 <p align="center">
-  <img src="./go-attend.gif" alt="Go-Attend TUI Demo">
+  <img src="./go-attend.gif" alt="TUI Demo">
+  <img src="./stats.png" alt="Stats Demo" height="350">
+  <img src="./stats-weekday.png" alt="Stats Weekday Demo" height="350">
 </p>
 
 ## Key Features
@@ -57,13 +59,13 @@ Options:
   go-attend
   ```
 - To record attendance for specific date:
-```bash
+  ```bash
   go-attend 01-08-2025
-```
+  ```
 
 > [!TIP]
-> Use Left/Right Arrow keys to navigate between dates
-> Vim Bindings (h/j/k/l) are also available for the pros
+> - Use Left/Right Arrow keys to navigate between dates  
+> - Vim Bindings (h/j/k/l) are also available for the pros
 
 ### Show Statistics
 ```
@@ -92,7 +94,7 @@ Flags:
 > [!NOTE]
 > See [config_template.ini](./config/config_template.ini) for all the configuration options
 
-On its first run, go-attend will create a default config.ini file (from [config_template.ini](./config/config_template.ini)) if one doesn't exist
+On its first run, go-attend will create a default config.ini file (from [config_template.ini](./config/config_template.ini)) if one doesn't exist.  
 **Run `go-attend config-file` to get the path to your config file**
 
 Default Locations (`$XDG_CONFIG_HOME`):
@@ -100,14 +102,14 @@ Default Locations (`$XDG_CONFIG_HOME`):
 - macOS: `~/Library/Application Support/go-attend/config.ini`
 
 ## Data Storage
-Attendance records are stored in a CSV file
+Attendance records are stored in a CSV file  
 Default Locations (`$XDG_DATA_HOME`):
 - Linux: `~/.local/share/go-attend/attendance.csv`
 - macOS: `~/Library/Application Support/go-attend/attendance.csv`
 
 ## Build Instructions
 
-You'll need Go (version 1.24.2 or newer) installed on your system.
+You'll need Go (v1.24.*) installed on your system.
 
 1.  **Clone the repository**
     ```bash
@@ -126,7 +128,7 @@ You'll need Go (version 1.24.2 or newer) installed on your system.
     ```
 
 <details>
-<summary>Todo</summary>
+<summary><H1>Todo</H1></summary>
 <br>
 
 - [x] TUI rendering (MVP)
