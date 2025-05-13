@@ -155,7 +155,7 @@ You'll need Go (v1.24.*) installed on your system.
 - [x] make `stats_view.go` for stats display
 - [x] handle arguments: start/end, date, remove record, rename subject etc
 - [x] README: add build, install and usage instructions
-- [ ] CI/CD: github actions, releases
+- [x] CI/CD: github actions, releases
 - [ ] add rename subject functionality in CLI
 - [ ] publish to AUR?
 - [ ] support windows using `term` package? (ain't gonna happen)
