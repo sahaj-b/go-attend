@@ -202,10 +202,8 @@ func (s *State) loadItems(dp StateDataProvider) (err error) {
 }
 
 func (s *State) stepDay(direction string, dp StateDataProvider) error {
-	if !s.AtMaxDate {
-		if s.changed {
-			s.CachedDates[s.Date] = s.Items
-		}
+	if s.changed {
+		s.CachedDates[s.Date] = s.Items
 	}
 	switch direction {
 	case "next":
