@@ -147,20 +147,22 @@ func (s *State) loadItems(dp StateDataProvider) (err error) {
 		if found {
 			s.Items = newItems
 			s.changed = false
-			for _, subject := range allSubjects {
-				found := false
-				for _, item := range s.Items {
-					if item.Name == subject {
-						found = true
-						break
+			if unscheduledAsCancelled {
+				for _, subject := range allSubjects {
+					found := false
+					for _, item := range s.Items {
+						if item.Name == subject {
+							found = true
+							break
+						}
 					}
-				}
-				if !found {
-					s.Items = append(s.Items, Item{
-						Name:     subject,
-						Selected: false,
-						Status:   core.Cancelled,
-					})
+					if !found {
+						s.Items = append(s.Items, Item{
+							Name:     subject,
+							Selected: false,
+							Status:   core.Cancelled,
+						})
+					}
 				}
 			}
 		} else {

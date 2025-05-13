@@ -1,4 +1,4 @@
-name: Go Build, Test & Release (Hardcoded Builds, Globbed Artifacts & Release)
+name: Go Build, Test & Release
 
 on:
   push:
