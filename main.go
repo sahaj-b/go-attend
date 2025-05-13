@@ -93,7 +93,7 @@ func printHelp() {
 	fmt.Println("  stats                 Show stats")
 	fmt.Println("  stats -h              Show stats usage and flags")
 	fmt.Println("  config-file           Show config file path")
-	fmt.Println("  h, -help            Show this help message")
+	fmt.Println("  -h, -help            Show this help message")
 	fmt.Println()
 }
 
