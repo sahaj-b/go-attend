@@ -65,6 +65,9 @@ func GetInitialState(dp StateDataProvider, date time.Time) (*State, error) {
 }
 
 func (s *State) toggleCancel() {
+	if len(s.Items) == 0 {
+		return
+	}
 	s.changed = true
 	if s.Items[s.Cursor].Status == core.Cancelled {
 		s.Items[s.Cursor].Status = core.Absent
@@ -74,6 +77,9 @@ func (s *State) toggleCancel() {
 }
 
 func (s *State) toggleItem() {
+	if len(s.Items) == 0 {
+		return
+	}
 	s.changed = true
 	switch s.Items[s.Cursor].Status {
 	case core.Present:
