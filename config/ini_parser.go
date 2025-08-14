@@ -189,3 +189,86 @@ func loadAndParseConfig() (Config, error) {
 	}
 	return parsedCfg, nil
 }
+
+func RenameSubjectInConfig(oldName, newName string) error {
+	cfgFilePath, err := GetCfgFilePath()
+	if err != nil {
+		return fmt.Errorf("Failed to get config file path: %w", err)
+	}
+
+	file, err := utils.EnsureAndGetFile(cfgFilePath, "r")
+	if err != nil {
+		return fmt.Errorf("Failed to open config file: %w", err)
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	found := false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		originalLine := line
+		trimmedLine := strings.TrimSpace(line)
+
+		if strings.Contains(trimmedLine, "=") && !strings.HasPrefix(trimmedLine, "#") && !strings.HasPrefix(trimmedLine, ";") {
+			keyValue := strings.SplitN(trimmedLine, "=", 2)
+			if len(keyValue) == 2 {
+				value := strings.TrimSpace(keyValue[1])
+				if value != "" {
+					subjects := strings.Split(value, ",")
+					modified := false
+					for i, subject := range subjects {
+						trimmedSubject := strings.TrimSpace(subject)
+						if trimmedSubject == oldName {
+							subjects[i] = " " + newName
+							modified = true
+							found = true
+						}
+					}
+					if modified {
+						newValue := strings.Join(subjects, ",")
+						line = strings.Replace(originalLine, value, newValue, 1)
+					}
+				}
+			}
+		}
+		lines = append(lines, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("Error reading config file: %w", err)
+	}
+
+	if !found {
+		return fmt.Errorf("Subject '%s' not found in config file", oldName)
+	}
+
+	file.Close()
+
+	// Write to a temp file first, then replace the original (atomic operation)
+	tempFilePath := cfgFilePath + ".tmp"
+	tempFile, err := utils.EnsureAndGetFile(tempFilePath, "w")
+	if err != nil {
+		return fmt.Errorf("Failed to create temp config file: %w", err)
+	}
+
+	for _, line := range lines {
+		if _, err := tempFile.WriteString(line + "\n"); err != nil {
+			tempFile.Close()
+			os.Remove(tempFilePath)
+			return fmt.Errorf("Failed to write to temp config file: %w", err)
+		}
+	}
+
+	tempFile.Close()
+
+	// Atomically replace the original file
+	err = os.Rename(tempFilePath, cfgFilePath)
+	if err != nil {
+		os.Remove(tempFilePath)
+		return fmt.Errorf("Failed to replace config file: %w", err)
+	}
+
+	return nil
+}

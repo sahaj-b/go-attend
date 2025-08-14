@@ -25,6 +25,9 @@ func main() {
 		case "stats":
 			handleStatsArgs(args)
 			return
+		case "rename":
+			handleRenameArgs(args)
+			return
 		case "help", "-h", "--help":
 			printHelp()
 			return
@@ -90,10 +93,11 @@ func printHelp() {
 	fmt.Println("Usage: go-attend [date|options]")
 	fmt.Println("Date format: " + DATE_FORMAT_ARG_SHOW)
 	fmt.Println("Options:")
-	fmt.Println("  stats                 Show stats")
-	fmt.Println("  stats -h              Show stats usage and flags")
-	fmt.Println("  config-file           Show config file path")
-	fmt.Println("  -h, -help            Show this help message")
+	fmt.Println("  stats               Show stats")
+	fmt.Println("  stats -h            Show stats usage and flags")
+	fmt.Println("  rename [old] [new]  Rename a subject from 'old' to 'new'")
+	fmt.Println("  config-file         Show config file path")
+	fmt.Println("  -h, -help           Show this help message")
 	fmt.Println()
 }
 
@@ -145,4 +149,39 @@ func handleStatsArgs(args []string) {
 	} else {
 		ui.DisplaySubjectWiseStats(csvStore, startDate, endDate)
 	}
+}
+
+func handleRenameArgs(args []string) {
+	if len(args) < 4 {
+		ui.Error("Not enough arguments for rename")
+		fmt.Println("Usage: go-attend rename <old_name> <new_name>")
+		return
+	}
+
+	oldName := args[2]
+	newName := args[3]
+
+	if oldName == newName {
+		ui.Error("Old and new names cannot be the same")
+		return
+	}
+
+	if oldName == "" || newName == "" {
+		ui.Error("Subject names cannot be empty")
+		return
+	}
+
+	csvStore, err := store.NewCSVStore()
+	if err != nil {
+		ui.Error("Error creating CSV store: " + err.Error())
+		return
+	}
+
+	err = csvStore.RenameSubject(oldName, newName)
+	if err != nil {
+		ui.Error("Error renaming subject: " + err.Error())
+		return
+	}
+
+	ui.Success(fmt.Sprintf("Successfully renamed '%s' to '%s'", oldName, newName))
 }

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,8 +18,11 @@ const (
 
 func barComponent(coloredLength, maxBarLength int) string {
 	grayBarLength := maxBarLength - coloredLength
-	// return Bggray + Cyan + strings.Repeat(bar, coloredLength) + strings.Repeat(" ", grayBarLength) + ResetStyle + "\n"
-	// return Bggray + Cyan + strings.Repeat(bar, coloredLength) + Gray + strings.Repeat(bar, grayBarLength) + ResetStyle + "\n"
+
+	if os.Getenv("NO_COLOR") != "" {
+		return "[" + strings.Repeat(bar, coloredLength) + strings.Repeat(" ", grayBarLength) + "]\n"
+	}
+
 	return Cyan + strings.Repeat(bar, coloredLength) + MoreGray + strings.Repeat(bar, grayBarLength) + ResetStyle + "\n"
 }
 

@@ -48,10 +48,11 @@
 Usage: go-attend [date|options]
 Date format: DD-MM-YYYY
 Options:
-  config-file           Show config file path
-  stats                 Show stats
-  stats -h              Show stats usage and flags
-  -h, -help             Show this help message
+  stats               Show stats
+  stats -h            Show stats usage and flags
+  rename [old] [new]  Rename a subject from 'old' to 'new'
+  config-file         Show config file path
+  -h, -help           Show this help message
 ```
 #### Examples:
 - To start tracking attendance for the current day:
@@ -107,6 +108,9 @@ Default Locations (`$XDG_DATA_HOME`):
 - Linux: `~/.local/share/go-attend/attendance.csv`
 - macOS: `~/Library/Application Support/go-attend/attendance.csv`
 
+> [!NOTE]
+> You can disable styling/colors by setting the `NO_COLOR` environment variable before running the command: `NO_COLOR=1 go-attend`
+
 ## Build Instructions
 
 You'll need Go (v1.24.*) installed on your system.
@@ -156,7 +160,8 @@ You'll need Go (v1.24.*) installed on your system.
 - [x] handle arguments: start/end, date, remove record, rename subject etc
 - [x] README: add build, install and usage instructions
 - [x] CI/CD: github actions, releases
-- [ ] add rename subject functionality in CLI
+- [x] add rename subject functionality in CLI
+- [x] respect NO_COLOR
 - [ ] publish to AUR?
 - [ ] support windows using `term` package? (ain't gonna happen)
 

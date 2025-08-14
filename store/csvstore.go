@@ -162,23 +162,44 @@ func (cs *CSVStore) getAllRecords() (csvRecords, error) {
 	if cs.cacheValid {
 		return cs.cachedRecords, nil
 	}
+
+	// First, read all records from file
 	file, err := utils.EnsureAndGetFile(cs.filePath, "r")
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
+
 	reader := csv.NewReader(file)
 	reader.FieldsPerRecord = -1
-	cs.validateAndUpdateHeader(reader)
-	file.Seek(0, 0)
 	csvrecords, err := reader.ReadAll()
 	if err != nil {
 		return nil, err
 	}
+
 	records := csvRecords(csvrecords)
+
+	// Check if we need to update header (but don't write yet)
+	needsHeaderUpdate, updatedRecords, err := cs.checkAndPrepareHeaderUpdate(&records)
+	if err != nil {
+		return nil, err
+	}
+
+	// If header needs updating, write the updated records back
+	if needsHeaderUpdate {
+		file.Close() // Close read file first
+		err = cs.writeAllRecords(&updatedRecords)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to write updated header: %w", err)
+		}
+		records = updatedRecords
+	}
+
+	// Validate the final records
 	if err := validateRecords(&records); err != nil {
 		return nil, fmt.Errorf("Corrupted data file: %w", err)
 	}
+
 	cs.cachedRecords = records
 	cs.cacheValid = true
 	return records, nil
@@ -265,6 +286,41 @@ func (cs *CSVStore) writeAllRecords(records *csvRecords) error {
 		return err
 	}
 	return nil
+}
+
+func (cs *CSVStore) checkAndPrepareHeaderUpdate(records *csvRecords) (bool, csvRecords, error) {
+	if len(*records) == 0 {
+		// Empty file, create header
+		correctHeader := cs.getHeaderFromCfg()
+		newRecords := csvRecords{correctHeader}
+		return true, newRecords, nil
+	}
+
+	if len((*records)[0]) < 1 {
+		return false, *records, fmt.Errorf("CSV Header length must be at least 1")
+	}
+
+	header := (*records)[0]
+
+	// Check if we need to add new subjects from config
+	newSubjects := []string{}
+	cfgSubjects := config.GetAllSubjectsSet()
+	for subject := range cfgSubjects {
+		if !slices.Contains(header, subject) {
+			newSubjects = append(newSubjects, subject)
+		}
+	}
+
+	if len(newSubjects) > 0 {
+		// Need to add new subjects to header
+		updatedRecords := make(csvRecords, len(*records))
+		copy(updatedRecords, *records)
+		updatedRecords[0] = append(updatedRecords[0], newSubjects...)
+		return true, updatedRecords, nil
+	}
+
+	// No changes needed
+	return false, *records, nil
 }
 
 func (cs *CSVStore) validateAndUpdateHeader(reader *csv.Reader) error {
@@ -391,4 +447,55 @@ func (cs *CSVStore) GetItemsInRange(starDate time.Time, endDate time.Time) ([]co
 		}
 	}
 	return finalItems, nil
+}
+
+func (cs *CSVStore) RenameSubject(oldName, newName string) error {
+	allRecords, err := cs.getAllRecords()
+	if err != nil {
+		return fmt.Errorf("Failed to fetch records: %w", err)
+	}
+
+	if len(allRecords) == 0 {
+		return fmt.Errorf("No records found")
+	}
+
+	header := allRecords[0]
+	oldIndex := slices.Index(header[1:], oldName)
+	if oldIndex == -1 {
+		return fmt.Errorf("Subject '%s' not found in records", oldName)
+	}
+	oldIndex++ // adjust for "Date" column
+
+	newIndex := slices.Index(header[1:], newName)
+	if newIndex != -1 {
+		return fmt.Errorf("Subject '%s' already exists", newName)
+	}
+
+	// create new records with renamed subject
+	newRecords := make(csvRecords, len(allRecords))
+	for i, record := range allRecords {
+		newRecord := make(csvRecord, len(record))
+		copy(newRecord, record)
+		if i == 0 {
+			// rename in header
+			newRecord[oldIndex] = newName
+		}
+		newRecords[i] = newRecord
+	}
+
+	err = cs.writeAllRecords(&newRecords)
+	if err != nil {
+		return fmt.Errorf("Failed to write renamed records: %w", err)
+	}
+
+	cs.cachedRecords = newRecords
+	cs.cacheValid = true
+
+	// Also update the config file
+	err = config.RenameSubjectInConfig(oldName, newName)
+	if err != nil {
+		return fmt.Errorf("Failed to update config file: %w", err)
+	}
+
+	return nil
 }

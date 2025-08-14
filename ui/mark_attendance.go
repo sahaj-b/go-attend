@@ -22,13 +22,27 @@ const (
 	restoreCursorPos = "\x1b[u"
 	clearDown        = "\x1b[J"
 	moveUp           = "\x1b[%dA"
-
-	highlight          = Yellow
-	cursorChar         = highlight + "❯" + ResetStyle
-	leftArrow          = Gray + "←" + ResetStyle
-	rightArrow         = Gray + "→" + ResetStyle
-	disabledRightArrow = Disabled + "→" + ResetStyle
 )
+
+var (
+	highlight          string
+	cursorChar         string
+	leftArrow          string
+	rightArrow         string
+	disabledRightArrow string
+	stylesInitialized  bool
+)
+
+func ensureStylesInitialized() {
+	if !stylesInitialized {
+		highlight = Yellow
+		cursorChar = highlight + "❯" + ResetStyle
+		leftArrow = Gray + "←" + ResetStyle
+		rightArrow = Gray + "→" + ResetStyle
+		disabledRightArrow = Disabled + "→" + ResetStyle
+		stylesInitialized = true
+	}
+}
 
 type Hint struct {
 	key string
@@ -140,6 +154,7 @@ func hintComponent(hints []Hint) string {
 }
 
 func dateComponent(date time.Time, atMaxDate bool) string {
+	ensureStylesInitialized()
 	today := date.Format(DATE_FORMAT_UI)
 	weekday := date.Format(WEEKDAY_FORMAT)
 	rightArrow := rightArrow
@@ -175,6 +190,7 @@ func getStyleAndBullet(item state.Item) (string, string) {
 }
 
 func Render(s *state.State) {
+	ensureStylesInitialized()
 	var output strings.Builder
 	output.WriteString("\r\n")
 	fmt.Printf(moveUp+clearDown, s.LastRenderedLines)
